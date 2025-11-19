@@ -386,6 +386,14 @@ public class Rango extends OpMode {
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
             if (!fiducials.isEmpty()) {
                 LLResultTypes.FiducialResult tag = fiducials.get(0);
+                int tagId = (int) tag.getFiducialId();
+                
+                // Only auto-aim to goal tags (20 = Blue Goal, 24 = Red Goal)
+                // Ignore motif tags (21-23, 25-27)
+                if (tagId != 20 && tagId != 24) {
+                    return 0;  // Don't auto-aim to motif tags
+                }
+                
                 double tx = tag.getTargetXDegrees();
                 
                 if (Math.abs(tx) > ROTATE_DEADBAND) {
