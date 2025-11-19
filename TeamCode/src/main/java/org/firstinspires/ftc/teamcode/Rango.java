@@ -7,6 +7,7 @@ import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -17,14 +18,17 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 // Import the Pedro Pathing classes
 import com.pedropathing.follower.Follower;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-// Custom Limelight class
-import org.firstinspires.ftc.teamcode.Limelight;
+
+// Limelight SDK imports
+import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLStatus;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
-
-@TeleOp(name = "Rnago", group = "Robot")
-public class Rnago extends OpMode {
+@TeleOp(name = "Rango", group = "Robot")
+public class Rango extends OpMode {
 
     // Hardware variables - Use DcMotorEx for all motors for consistency
     private DcMotorEx frontLeftDrive, frontRightDrive, backLeftDrive, backRightDrive;
@@ -37,15 +41,11 @@ public class Rnago extends OpMode {
     private Follower follower;
 
     // Limelight Variables
-    private Limelight limelight;
-    private boolean isNormalView = false, areLedsOn = false;
-    private final ElapsedTime cameraToggleTimer = new ElapsedTime();
-    private final ElapsedTime ledToggleTimer = new ElapsedTime();
-    private static final int EXPOSURE_NORMAL = 70;
-    private static final int EXPOSURE_TRACKING = 5;
+    private Limelight3A limelight;
 
     // Constants
     private final double TICKS_PER_REV = 28;
+    private final double gear = 1.0;  // Gear ratio for rotation speed
 
     @Override
     public void init() {
@@ -63,10 +63,11 @@ public class Rnago extends OpMode {
         imu = hardwareMap.get(IMU.class, "imu");
 
         // Initialize Pedro Pathing follower
+        follower = Constants.createFollower(hardwareMap);
 
         // Drivetrain setup
         frontLeftDrive.setDirection(DcMotorSimple.Direction.REVERSE);
-        backLeftDrive.setDirection(DcMotorSimple.Direction.REVERSE);
+        backLeftDrive.setDirection(DcMotorSimple.Direction.FORWARD);
 
         frontLeftDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         frontRightDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -86,11 +87,10 @@ public class Rnago extends OpMode {
         imu.initialize(new IMU.Parameters(orientationOnRobot));
 
         // Limelight setup
-        limelight = new Limelight();
-        limelight.setCameraMode(0); // Set to Vision Processor mode
-        limelight.setExposure(EXPOSURE_TRACKING);
-        limelight.setLedMode(1); // Force LEDs off
-        limelight.setPipeline(0);
+        limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        telemetry.setMsTransmissionInterval(11);
+        limelight.pipelineSwitch(0);
+        limelight.start();
 
         telemetry.addLine("Initialization Complete");
         telemetry.update();
@@ -99,54 +99,63 @@ public class Rnago extends OpMode {
     @Override
     public void start() {
         blocker.setPosition(0.3);
-        // Reset timers to prevent immediate toggling
-        cameraToggleTimer.reset();
-        ledToggleTimer.reset();
     }
 
     @Override
     public void loop() {
+        // Gamepad input variables
+        boolean LStickIn2 = gamepad2.left_stick_button;
+        boolean RStickIn2 = gamepad2.right_stick_button;
+        boolean LBumper1 = gamepad1.left_bumper;
+        boolean RBumper1 = gamepad1.right_bumper;
+
+        double LStickY = gamepad1.left_stick_y;
+        double LStickX = gamepad1.left_stick_x;
+        double RStickY = -gamepad1.right_stick_y;
+        double RStickX = -gamepad1.right_stick_x;
+
+        double LTrigger1 = gamepad1.left_trigger;
+        double RTrigger1 = gamepad1.right_trigger;
+
+        boolean a1 = gamepad1.a;
+        boolean b1 = gamepad1.b;
+        boolean x1 = gamepad1.x;
+        boolean y1 = gamepad1.y;
+
+        boolean a2 = gamepad2.a;
+        boolean b2 = gamepad2.b;
+        boolean x2 = gamepad2.x;
+        boolean y2 = gamepad2.y;
+
+        double LTrigger2 = gamepad2.left_trigger;
+        double RTrigger2 = gamepad2.right_trigger;
+        boolean LBumper2 = gamepad2.left_bumper;
+        boolean RBumper2 = gamepad2.right_bumper;
+
+        double RStickY2 = -gamepad2.right_stick_y;
+        double RStickX2 = gamepad2.right_stick_x;
+        double LStickY2 = -gamepad2.left_stick_y;
+        double LStickX2 = gamepad2.left_stick_x;
+
+        boolean dpadUp1 = gamepad1.dpad_up;
+        boolean dpadDown1 = gamepad1.dpad_down;
+        boolean dpadRight1 = gamepad1.dpad_right;
+        boolean dpadLeft1 = gamepad1.dpad_left;
+
+        boolean dpadUp2 = gamepad2.dpad_up;
+        boolean dpadDown2 = gamepad2.dpad_down;
+        boolean dpadRight2 = gamepad2.dpad_right;
+        boolean dpadLeft2 = gamepad2.dpad_left;
+
         // Update odometry localization
         follower.update();
 
         // Handle all robot controls
-        handleLimelightToggles();
         handleSubsystemControls();
         handleDriveControls();
 
         // Display telemetry
         displayTelemetry();
-    }
-
-    /**
-     * Handles the logic for toggling Limelight camera view and LEDs using gamepad 1.
-     */
-    private void handleLimelightToggles() {
-        // Toggle camera view between normal and tracking
-        if (gamepad1.y && cameraToggleTimer.seconds() > 0.5) {
-            isNormalView = !isNormalView;
-            if (isNormalView) {
-                limelight.setExposure(EXPOSURE_NORMAL);
-                telemetry.speak("Normal View");
-            } else {
-                limelight.setExposure(EXPOSURE_TRACKING);
-                telemetry.speak("Tracking View");
-            }
-            cameraToggleTimer.reset();
-        }
-
-        // Toggle Limelight LEDs on and off
-        if (gamepad1.a && ledToggleTimer.seconds() > 0.5) {
-            areLedsOn = !areLedsOn;
-            if (areLedsOn) {
-                limelight.setLedMode(3); // Force On
-                telemetry.speak("L E D On");
-            } else {
-                limelight.setLedMode(1); // Force Off
-                telemetry.speak("L E D Off");
-            }
-            ledToggleTimer.reset();
-        }
     }
 
     /**
@@ -156,7 +165,8 @@ public class Rnago extends OpMode {
         // Intake motor control (simplified and corrected)
         double rpm = 3500;
         if (gamepad2.right_bumper) {
-            intake.setVelocity(getTickSpeed(rpm));
+            // intake.setVelocity(getTickSpeed(rpm));
+            intake.setPower(1.0);
         } else if (gamepad2.right_trigger > 0.1) { // Added a deadzone for the trigger
             intake.setVelocity(getTickSpeed(-rpm));
         } else {
@@ -184,7 +194,51 @@ public class Rnago extends OpMode {
      * Handles the Mecanum drivetrain logic using gamepad 1.
      */
     private void handleDriveControls() {
-        drive(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+        double LStickY = -gamepad1.left_stick_x;  // Reversed forward/back
+        double LStickX = -gamepad1.left_stick_y;  // Reversed strafe
+        double RStickX = gamepad1.right_stick_x;  // Reversed turn
+        
+        boolean LBumper1 = gamepad1.left_bumper;
+        boolean RBumper1 = gamepad1.right_bumper;
+        
+        boolean dpadUp1 = gamepad1.dpad_up;
+        boolean dpadDown1 = gamepad1.dpad_down;
+        boolean dpadRight1 = gamepad1.dpad_right;
+        boolean dpadLeft1 = gamepad1.dpad_left;
+        
+        double gear = 1;
+
+        if (Math.abs(LStickX) > 0 || Math.abs(LStickY) > 0 || Math.abs(RStickX) > 0) {
+            double rotation = 0;
+
+            double newX = -LStickX * Math.cos(rotation) - -LStickY * Math.sin(rotation);
+            double newY = LStickY * Math.cos(rotation) - -LStickX * Math.sin(rotation);
+
+            double r = Math.hypot(newX, newY);
+            double robotAngle = Math.atan2(newY, newX) - Math.PI / 4;
+            double rightX = gamepad1.right_stick_x;  // Match RStickX direction
+
+            double v1 = r * Math.cos(robotAngle) + rightX * gear; //lf
+            double v2 = r * Math.sin(robotAngle) + rightX * gear; //rf
+            double v3 = r * Math.sin(robotAngle) - rightX * gear; //lb
+            double v4 = r * Math.cos(robotAngle) - rightX * gear; //rb
+
+            SetPower(v1, v2, v3, v4);
+
+        } else if (LBumper1) {
+            SetPower(-gear, gear, gear, -gear);
+
+        } else if (RBumper1) {
+            SetPower(gear, -gear, -gear, gear);
+
+      
+
+        } else {
+            frontLeftDrive.setPower(0);
+            backLeftDrive.setPower(0);
+            frontRightDrive.setPower(0);
+            backRightDrive.setPower(0);
+        }
     }
 
     /**
@@ -195,31 +249,39 @@ public class Rnago extends OpMode {
     }
 
     /**
+     * Set power to all drive motors
+     */
+    private void SetPower(double v1, double v2, double v3, double v4) {
+        frontLeftDrive.setPower(v1);
+        frontRightDrive.setPower(v2);
+        backLeftDrive.setPower(v3);
+        backRightDrive.setPower(v4);
+    }
+
+    /**
      * Mecanum drive logic.
      * @param forward The forward/backward movement from the left stick y-axis.
-     * @param right The strafing movement from the left stick x-axis.
+     * @param strafe The strafing movement from the left stick x-axis.
      * @param rotate The rotational movement from the right stick x-axis.
      */
-    public void drive(double forward, double right, double rotate) {
-        // The signs for right and rotate might need to be inverted depending on motor setup
-        double frontLeftPower = forward + right + rotate;
-        double frontRightPower = forward - right - rotate;
-        double backRightPower = forward + right - rotate;
-        double backLeftPower = forward - right + rotate;
+    public void drive(double forward, double strafe, double rotate) {
+        // Correct mecanum drive formula
+        double frontLeftPower = forward + strafe + rotate;
+        double frontRightPower = forward - strafe - rotate;
+        double backLeftPower = forward - strafe + rotate;
+        double backRightPower = forward + strafe - rotate;
 
-        // Find the maximum absolute power to maintain wheel ratios
-        double maxPower = 1.0;
-        maxPower = Math.max(maxPower, Math.abs(frontLeftPower));
+        // Normalize powers to prevent exceeding 1.0
+        double maxPower = Math.max(1.0, Math.abs(frontLeftPower));
         maxPower = Math.max(maxPower, Math.abs(frontRightPower));
-        maxPower = Math.max(maxPower, Math.abs(backRightPower));
         maxPower = Math.max(maxPower, Math.abs(backLeftPower));
+        maxPower = Math.max(maxPower, Math.abs(backRightPower));
 
-        // Normalize powers and apply a maximum speed limit
-        double maxSpeed = 0.75;
-        frontLeftDrive.setPower(maxSpeed * (frontLeftPower / maxPower));
-        frontRightDrive.setPower(maxSpeed * (frontRightPower / maxPower));
-        backLeftDrive.setPower(maxSpeed * (backLeftPower / maxPower));
-        backRightDrive.setPower(maxSpeed * (backRightPower / maxPower));
+        // Apply normalized powers
+        frontLeftDrive.setPower(frontLeftPower / maxPower);
+        frontRightDrive.setPower(frontRightPower / maxPower);
+        backLeftDrive.setPower(backLeftPower / maxPower);
+        backRightDrive.setPower(backRightPower / maxPower);
     }
 
     /**
@@ -232,10 +294,18 @@ public class Rnago extends OpMode {
         telemetry.addData("Intake Target RPM", intake.getVelocity() / TICKS_PER_REV * 60);
         telemetry.addLine();
 
-        // Limelight Controls and Status
+        // Limelight Field Coordinates
         telemetry.addLine("--- Limelight ---");
-        telemetry.addData("Camera View (Y on G1)", isNormalView ? "Normal" : "Tracking");
-        telemetry.addData("LEDs (A on G1)", areLedsOn ? "On" : "Off");
+        LLResult result = limelight.getLatestResult();
+        if (result != null && result.isValid()) {
+            Pose3D botpose = result.getBotpose();
+            telemetry.addData("Field X", "%.2f", (botpose.getPosition().x * (39+(47/127))));
+            telemetry.addData("Field Y", "%.2f", (botpose.getPosition().y * (39+(47/127))));
+            telemetry.addData("Field Z", "%.2f", (botpose.getPosition().z * (39+(47/127))));
+            telemetry.addData("LL Latency", "%.1f ms", result.getCaptureLatency() + result.getTargetingLatency());
+        } else {
+            telemetry.addData("Limelight", "No data available");
+        }
         telemetry.addLine();
 
         // Robot Position (Odometry)

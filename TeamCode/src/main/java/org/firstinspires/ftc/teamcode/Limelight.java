@@ -1,8 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
 // Imports for the Lazar full-panels library
-//import com.lazar.fullpanels.FtcDashboard;
-//import com.lazar.fullpanels.TelemetryPacket;
+import com.lazar.fullpanels.FtcDashboard;
+import com.lazar.fullpanels.TelemetryPacket;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -33,7 +33,7 @@ public class Limelight {
     public Limelight(String name) {
         this.limelightName = name;
         // This will get the instance of the fullpanels dashboard
-//        this.dashboard = FtcDashboard.getInstance();
+       this.dashboard = FtcDashboard.getInstance();
     }
 
     /**
@@ -55,21 +55,21 @@ public class Limelight {
 
                 int responseCode = connection.getResponseCode();
                 // Send telemetry feedback only if a dashboard instance is available
-//                if (dashboard != null) {
-//                    TelemetryPacket packet = new TelemetryPacket();
-//                    packet.put("Limelight " + param, "Sent: " + val + " | Response: " + responseCode);
-//                    dashboard.sendTelemetryPacket(packet);
-//                }
+               if (dashboard != null) {
+                   TelemetryPacket packet = new TelemetryPacket();
+                   packet.put("Limelight " + param, "Sent: " + val + " | Response: " + responseCode);
+                   dashboard.sendTelemetryPacket(packet);
+               }
 
                 connection.disconnect();
 
             } catch (Exception e) {
                 // Log any errors to the fullpanels dashboard for debugging
-//                if (dashboard != null) {
-//                    TelemetryPacket packet = new TelemetryPacket();
-//                    packet.put("Limelight Connection Error", e.getMessage());
-//                    dashboard.sendTelemetryPacket(packet);
-//                }
+               if (dashboard != null) {
+                   TelemetryPacket packet = new TelemetryPacket();
+                   packet.put("Limelight Connection Error", e.getMessage());
+                   dashboard.sendTelemetryPacket(packet);
+               }
             }
         }).start(); // Start the new thread
     }

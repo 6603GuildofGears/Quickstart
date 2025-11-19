@@ -22,6 +22,7 @@ public class Constants {
     }
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(5);
+
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)
             .rightFrontMotorName("frontRightDrive")
