@@ -66,6 +66,70 @@ public class Rango extends OpMode {
     private double lastOdoY = 0;
     private double lastLimelightUpdateTime = 0;
     public static double LIMELIGHT_WEIGHT = 0.85;  // Weight for Limelight updates (tunable via dashboard)
+    
+    // AprilTag tracking
+    private int currentTagId = -1;
+    private String currentTagType = "None";
+    private String currentTagLocation = "Unknown";
+    
+    // AprilTag field positions (Pedro Pathing coordinates - origin top-left, Y down, inches)
+    // DECODE Season 2025-2026 - Field size: 141.24" x 141.24"
+    // Blue alliance tags (IDs 20, 21, 22, 23)
+    private static final double[][] BLUE_TAG_POSITIONS = {
+        {6, 47.25},    // Tag 20 - Blue Goal
+        {6, 70.62},    // Tag 21 - Motif 21  
+        {6, 93.99},    // Tag 22 - Motif 22
+        {6, 117.36}    // Tag 23 - Motif 23
+    };
+    
+    private static final String[] BLUE_TAG_NAMES = {
+        "Blue Goal",   // Tag 20
+        "Motif 21",    // Tag 21
+        "Motif 22",    // Tag 22
+        "Motif 23"     // Tag 23
+    };
+    
+    // Red alliance tags (IDs 24, 25, 26, 27)
+    private static final double[][] RED_TAG_POSITIONS = {
+        {135.24, 47.25},   // Tag 24 - Red Goal
+        {135.24, 70.62},   // Tag 25 - Motif 21
+        {135.24, 93.99},   // Tag 26 - Motif 22
+        {135.24, 117.36}   // Tag 27 - Motif 23
+    };
+    
+    private static final String[] RED_TAG_NAMES = {
+        "Red Goal",    // Tag 24
+        "Motif 21",    // Tag 25
+        "Motif 22",    // Tag 26
+        "Motif 23"     // Tag 27
+    };
+    
+    // Neutral tags (IDs 1-10)
+    private static final double[][] NEUTRAL_TAG_POSITIONS = {
+        {70.62, 6},       // Tag 1 - Audience wall center
+        {47.25, 6},       // Tag 2 - Audience wall left
+        {93.99, 6},       // Tag 3 - Audience wall right
+        {0, 0},           // Tag 4-10 (adjust as needed)
+        {0, 0},
+        {0, 0},
+        {0, 0},
+        {0, 0},
+        {0, 0},
+        {0, 0}
+    };
+    
+    private static final String[] NEUTRAL_TAG_NAMES = {
+        "Audience Center",  // Tag 1
+        "Audience Left",    // Tag 2
+        "Audience Right",   // Tag 3
+        "Neutral 4",        // Tags 4-10
+        "Neutral 5",
+        "Neutral 6",
+        "Neutral 7",
+        "Neutral 8",
+        "Neutral 9",
+        "Neutral 10"
+    };
 
     @Override
     public void init() {
@@ -377,30 +441,75 @@ public class Rango extends OpMode {
         // Get Limelight data
         LLResult result = limelight.getLatestResult();
         if (result != null && result.isValid()) {
-            Pose3D botpose = result.getBotpose();
-            // Convert Limelight to Pedro Pathing coordinates
-            double llX = botpose.getPosition().x * (39 + (47.0 / 127.0));
-            double llY = -botpose.getPosition().y * (39 + (47.0 / 127.0));  // Invert Y
-            
-            // Blend positions: high Limelight weight for accuracy
-            fusedX = (1.0 - LIMELIGHT_WEIGHT) * odoX + LIMELIGHT_WEIGHT * llX;
-            fusedY = (1.0 - LIMELIGHT_WEIGHT) * odoY + LIMELIGHT_WEIGHT * llY;
-            
-            // Store current odometry for delta tracking
-            lastOdoX = odoX;
-            lastOdoY = odoY;
-            lastLimelightUpdateTime = System.currentTimeMillis();
-        } else {
-            // No Limelight: add odometry delta to last fused position (prevents jump)
-            double deltaX = odoX - lastOdoX;
-            double deltaY = odoY - lastOdoY;
-            fusedX += deltaX;
-            fusedY += deltaY;
-            
-            // Update odometry reference
-            lastOdoX = odoX;
-            lastOdoY = odoY;
+            List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
+            if (!fiducials.isEmpty()) {
+                LLResultTypes.FiducialResult tag = fiducials.get(0);
+                int tagId = (int) tag.getFiducialId();
+                currentTagId = tagId;
+                
+                // Determine tag type and get field position
+                double[] tagFieldPos = getTagFieldPosition(tagId);
+                
+                if (tagFieldPos != null) {
+                    // Get robot pose from Limelight (relative to detected tag)
+                    Pose3D robotPose = tag.getRobotPoseFieldSpace();
+                    
+                    // Calculate robot position from tag position
+                    // Convert to Pedro Pathing coordinates (inches, origin top-left)
+                    double llX = tagFieldPos[0] + (robotPose.getPosition().x * 39.3701);
+                    double llY = tagFieldPos[1] - (robotPose.getPosition().y * 39.3701);  // Invert Y
+                    
+                    // Blend positions: high Limelight weight for accuracy
+                    fusedX = (1.0 - LIMELIGHT_WEIGHT) * odoX + LIMELIGHT_WEIGHT * llX;
+                    fusedY = (1.0 - LIMELIGHT_WEIGHT) * odoY + LIMELIGHT_WEIGHT * llY;
+                    
+                    // Store current odometry for delta tracking
+                    lastOdoX = odoX;
+                    lastOdoY = odoY;
+                    lastLimelightUpdateTime = System.currentTimeMillis();
+                    return;
+                }
+            }
         }
+        
+        // No valid Limelight data: add odometry delta to last fused position (prevents jump)
+        // Don't reset currentTagId/Type immediately - keep last known tag info
+        double deltaX = odoX - lastOdoX;
+        double deltaY = odoY - lastOdoY;
+        fusedX += deltaX;
+        fusedY += deltaY;
+        
+        // Update odometry reference
+        lastOdoX = odoX;
+        lastOdoY = odoY;
+    }
+    
+    /**
+     * Get the field position of an AprilTag by ID and set tag type
+     */
+    private double[] getTagFieldPosition(int tagId) {
+        // Neutral tags (1-10)
+        if (tagId >= 1 && tagId <= 10) {
+            currentTagType = "Neutral";
+            currentTagLocation = NEUTRAL_TAG_NAMES[tagId - 1];
+            return NEUTRAL_TAG_POSITIONS[tagId - 1];
+        }
+        // Blue alliance tags (20-23)
+        else if (tagId >= 20 && tagId <= 23) {
+            currentTagType = "Blue";
+            currentTagLocation = BLUE_TAG_NAMES[tagId - 20];
+            return BLUE_TAG_POSITIONS[tagId - 20];
+        }
+        // Red alliance tags (24-27)
+        else if (tagId >= 24 && tagId <= 27) {
+            currentTagType = "Red";
+            currentTagLocation = RED_TAG_NAMES[tagId - 24];
+            return RED_TAG_POSITIONS[tagId - 24];
+        }
+        
+        currentTagType = "Unknown";
+        currentTagLocation = "Unknown";
+        return null;
     }
 
     /**
@@ -412,17 +521,21 @@ public class Rango extends OpMode {
         telemetry.addData("Auto-Aim", autoAimEnabled ? "ENABLED" : "DISABLED");
         telemetry.addLine();
         
-        // Limelight Field Coordinates
+        // AprilTag Detection
+        telemetry.addLine("--- AprilTag Detection ---");
+        if (currentTagId != -1) {
+            telemetry.addData("Tag ID", currentTagId);
+            telemetry.addData("Tag Type", currentTagType);
+            telemetry.addData("Location", currentTagLocation);
+        } else {
+            telemetry.addData("Tag", "None Detected");
+        }
+        telemetry.addLine();
+        
+        // Limelight Status
         telemetry.addLine("--- Limelight ---");
         LLResult result = limelight.getLatestResult();
         if (result != null && result.isValid()) {
-            Pose3D botpose = result.getBotpose();
-            // Convert Limelight coordinates to Pedro Pathing format (origin at top-left, Y increases downward)
-            double fieldX = botpose.getPosition().x * (39+(47/127));
-            double fieldY = -botpose.getPosition().y * (39+(47/127));  // Invert Y to match Pedro Pathing
-            telemetry.addData("Field X", "%.2f", fieldX);
-            telemetry.addData("Field Y", "%.2f", fieldY);
-            telemetry.addData("Field Z", "%.2f", (botpose.getPosition().z * (39+(47/127))));
             telemetry.addData("LL Latency", "%.1f ms", result.getCaptureLatency() + result.getTargetingLatency());
         } else {
             telemetry.addData("Limelight", "No data available");
