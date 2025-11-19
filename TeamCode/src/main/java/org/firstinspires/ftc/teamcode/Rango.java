@@ -450,7 +450,10 @@ public class Rango extends OpMode {
                 // Determine tag type and get field position
                 double[] tagFieldPos = getTagFieldPosition(tagId);
                 
-                if (tagFieldPos != null) {
+                // Only use fixed goal tags (20, 24) for localization, not motif tags (21-23, 25-27)
+                boolean isFixedTag = (tagId == 20 || tagId == 24 || (tagId >= 1 && tagId <= 10));
+                
+                if (tagFieldPos != null && isFixedTag) {
                     // Get robot pose from Limelight (relative to detected tag)
                     Pose3D robotPose = tag.getRobotPoseFieldSpace();
                     
