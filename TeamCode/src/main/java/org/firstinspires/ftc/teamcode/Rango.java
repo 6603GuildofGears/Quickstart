@@ -58,6 +58,14 @@ public class Rango extends OpMode {
     // Auto-aim state
     private boolean autoAimEnabled = true;  // Start enabled
     private boolean lastAButtonState = false;
+    
+    // Sensor fusion for position tracking
+    private double fusedX = 0;
+    private double fusedY = 0;
+    private double lastOdoX = 0;  // Last odometry reading
+    private double lastOdoY = 0;
+    private double lastLimelightUpdateTime = 0;
+    public static double LIMELIGHT_WEIGHT = 0.85;  // Weight for Limelight updates (tunable via dashboard)
 
     @Override
     public void init() {
@@ -167,6 +175,9 @@ public class Rango extends OpMode {
 
         // Update odometry localization
         follower.update();
+        
+        // Update fused position using Limelight + Odometry
+        updateFusedPosition();
 
         // Handle all robot controls
         handleSubsystemControls();
@@ -356,6 +367,43 @@ public class Rango extends OpMode {
     }
 
     /**
+     * Update fused position using Limelight absolute position and odometry relative tracking
+     */
+    private void updateFusedPosition() {
+        // Get current odometry position
+        double odoX = follower.getPose().getX();
+        double odoY = follower.getPose().getY();
+        
+        // Get Limelight data
+        LLResult result = limelight.getLatestResult();
+        if (result != null && result.isValid()) {
+            Pose3D botpose = result.getBotpose();
+            // Convert Limelight to Pedro Pathing coordinates
+            double llX = botpose.getPosition().x * (39 + (47.0 / 127.0));
+            double llY = -botpose.getPosition().y * (39 + (47.0 / 127.0));  // Invert Y
+            
+            // Blend positions: high Limelight weight for accuracy
+            fusedX = (1.0 - LIMELIGHT_WEIGHT) * odoX + LIMELIGHT_WEIGHT * llX;
+            fusedY = (1.0 - LIMELIGHT_WEIGHT) * odoY + LIMELIGHT_WEIGHT * llY;
+            
+            // Store current odometry for delta tracking
+            lastOdoX = odoX;
+            lastOdoY = odoY;
+            lastLimelightUpdateTime = System.currentTimeMillis();
+        } else {
+            // No Limelight: add odometry delta to last fused position (prevents jump)
+            double deltaX = odoX - lastOdoX;
+            double deltaY = odoY - lastOdoY;
+            fusedX += deltaX;
+            fusedY += deltaY;
+            
+            // Update odometry reference
+            lastOdoX = odoX;
+            lastOdoY = odoY;
+        }
+    }
+
+    /**
      * Displays all telemetry data to the Driver Station and FTC Dashboard.
      */
     private void displayTelemetry() {
@@ -369,8 +417,11 @@ public class Rango extends OpMode {
         LLResult result = limelight.getLatestResult();
         if (result != null && result.isValid()) {
             Pose3D botpose = result.getBotpose();
-            telemetry.addData("Field X", "%.2f", (botpose.getPosition().x * (39+(47/127))));
-            telemetry.addData("Field Y", "%.2f", (botpose.getPosition().y * (39+(47/127))));
+            // Convert Limelight coordinates to Pedro Pathing format (origin at top-left, Y increases downward)
+            double fieldX = botpose.getPosition().x * (39+(47/127));
+            double fieldY = -botpose.getPosition().y * (39+(47/127));  // Invert Y to match Pedro Pathing
+            telemetry.addData("Field X", "%.2f", fieldX);
+            telemetry.addData("Field Y", "%.2f", fieldY);
             telemetry.addData("Field Z", "%.2f", (botpose.getPosition().z * (39+(47/127))));
             telemetry.addData("LL Latency", "%.1f ms", result.getCaptureLatency() + result.getTargetingLatency());
         } else {
@@ -378,11 +429,12 @@ public class Rango extends OpMode {
         }
         telemetry.addLine();
 
-        // Robot Position (Odometry)
-        telemetry.addLine("--- Odometry ---");
-        telemetry.addData("X Position", follower.getPose().getX());
-        telemetry.addData("Y Position", follower.getPose().getY());
-        telemetry.addData("Odometry Heading (deg)", Math.toDegrees(follower.getPose().getHeading()));
+        // Robot Position (Fused: Limelight + Odometry)
+        telemetry.addLine("--- Fused Position ---");
+        telemetry.addData("X Position", "%.2f", fusedX);
+        telemetry.addData("Y Position", "%.2f", fusedY);
+        telemetry.addData("Heading (deg)", "%.1f", Math.toDegrees(follower.getPose().getHeading()));
+        telemetry.addData("LL Weight", "%.2f", LIMELIGHT_WEIGHT);
 
         telemetry.update();
     }
