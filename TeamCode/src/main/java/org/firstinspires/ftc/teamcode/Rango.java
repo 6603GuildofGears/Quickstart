@@ -364,12 +364,6 @@ public class Rango extends OpMode {
         telemetry.addData("Auto-Aim", autoAimEnabled ? "ENABLED" : "DISABLED");
         telemetry.addLine();
         
-        // Driver Controls and Subsystem Status
-        telemetry.addLine("--- Driver & Subsystems ---");
-        telemetry.addLine("G2 RT: Intake | G2 RB: Reverse Intake");
-        telemetry.addData("Intake Target RPM", intake.getVelocity() / TICKS_PER_REV * 60);
-        telemetry.addLine();
-
         // Limelight Field Coordinates
         telemetry.addLine("--- Limelight ---");
         LLResult result = limelight.getLatestResult();
@@ -389,11 +383,6 @@ public class Rango extends OpMode {
         telemetry.addData("X Position", follower.getPose().getX());
         telemetry.addData("Y Position", follower.getPose().getY());
         telemetry.addData("Odometry Heading (deg)", Math.toDegrees(follower.getPose().getHeading()));
-        telemetry.addLine();
-
-        // IMU Data
-        telemetry.addLine("--- IMU ---");
-        telemetry.addData("IMU Yaw (deg)", imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES));
 
         telemetry.update();
     }
