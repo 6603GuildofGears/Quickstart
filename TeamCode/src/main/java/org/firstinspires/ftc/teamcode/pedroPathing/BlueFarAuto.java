@@ -5,7 +5,6 @@ import com.pedropathing.geometry.*;
 import com.pedropathing.paths.*;
 import com.pedropathing.util.*;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -21,8 +20,8 @@ import java.util.List;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Blue - Close (Goal)", group = "Competition")
-public class RedCloseAuto extends OpMode {
+@Autonomous(name = "Red - Far", group = "Competition")
+public class BlueFarAuto extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, opmodeTimer, actionTimer;
@@ -43,44 +42,53 @@ public class RedCloseAuto extends OpMode {
     public static double LIMELIGHT_WEIGHT = 0.85;
 
     private final double TICKS_PER_REV = 28;
+    private static final double FIELD_CENTER_X = 70.62;  // Half of 141.24
     
     // Scoring constants
-    public static double SHOOTER_RPM = 3700;  // Shooter speed from Rango
-    public static double INTAKE_PICKUP_POWER = 0.875;  // Power to pick up from ground
-    public static double INTAKE_FEED_POWER = 0.625;  // Power to feed into shooter
-    public static double RPM_TOLERANCE = 100;  // Shooter is ready within this RPM of target
-    private static final double REV_UP_TIME = 3.0;  // Seconds to rev up shooter (for initial preload)
-    private static final double PUSH_TIME = 2.5;  // Seconds per push pulse
-    private static final double PAUSE_TIME = 0.3;  // Pause between pulses
-    private static final double SETTLE_TIME = 0.5;  // Stop to re-aim before shooting
-    private static final int SAMPLES_PER_SCORE = 2;  // Score 2 samples each time
-    private static final int PUSH_PULSES = 3;  // Number of push pulses
-    private int currentPulse = 0;  // Current pulse counter
+    public static double SHOOTER_RPM = 3700;
+    public static double INTAKE_PICKUP_POWER = 0.875;
+    public static double INTAKE_FEED_POWER = 0.625;
+    public static double RPM_TOLERANCE = 100;
+    private static final double REV_UP_TIME = 3.0;
+    private static final double PUSH_TIME = 2.5;
+    private static final double PAUSE_TIME = 0.3;
+    private static final double SETTLE_TIME = 0.5;
+    private static final int SAMPLES_PER_SCORE = 2;
+    private static final int PUSH_PULSES = 3;
+    private int currentPulse = 0;
     
     // Servo positions
-    private static final double BLOCKER_OPEN = 0.175;  // From Rango
-    private static final double BLOCKER_CLOSED = 0.3;  // From Rango
+    private static final double BLOCKER_OPEN = 0.175;
+    private static final double BLOCKER_CLOSED = 0.3;
     
-    // AprilTag positions for localization (Red alliance)
-    private static final double[][] RED_TAG_POSITIONS = {
-        {135.24, 47.25},   // Tag 24 - Red Goal
-        {135.24, 70.62},   // Tag 25 - Motif 21
-        {135.24, 93.99},   // Tag 26 - Motif 22
-        {135.24, 117.36}   // Tag 27 - Motif 23
+    // AprilTag positions for localization (Blue alliance)
+    private static final double[][] BLUE_TAG_POSITIONS = {
+        {6.0, 47.25},      // Tag 14 - Blue Goal
+        {6.0, 70.62},      // Tag 15 - Motif 11
+        {6.0, 93.99},      // Tag 16 - Motif 12
+        {6.0, 117.36}      // Tag 17 - Motif 13
     };
 
-    // Poses for Red Close starting position (Observation Zone - audience wall)
-    public final Pose startPose = new Pose(81.5, 131.5, Math.toRadians(0));  // Audience wall, facing toward field
-    public final Pose shootPose = new Pose(75, 81, Math.toRadians(45));  // Shooting position near red processor
-    public final Pose intakePose1 = new Pose(130, 84, Math.toRadians(180));  // First sample - butt facing sample
-    public final Pose intakePose2Bridge = new Pose(85, 60, Math.toRadians(135));  // Bridge for sample 2
-    public final Pose intakePose2 = new Pose(130, 59, Math.toRadians(180));  // Second sample - butt facing sample
-    public final Pose intakePose3 = new Pose(85, 37, Math.toRadians(90));  // Third sample intermediate
-    public final Pose intakePose3b = new Pose(130, 35, Math.toRadians(180));  // Third sample - butt facing sample
+    // Poses for Blue Far starting position (mirrored from Red Far)
+    // Red: (90, 9, 270°) -> Blue: mirror(90) = 51.24, heading = 180-270 = -90 = 270°
+    public final Pose startPose = new Pose(mirror(90), 9, Math.toRadians(270));
+    public final Pose shootPose = new Pose(mirror(75), 81, Math.toRadians(180 - 45));
+    public final Pose intakePose1 = new Pose(mirror(130), 84, Math.toRadians(180 - 180));
+    public final Pose intakePose2Bridge = new Pose(mirror(85), 60, Math.toRadians(180 - 135));
+    public final Pose intakePose2 = new Pose(mirror(130), 59, Math.toRadians(180 - 180));
+    public final Pose intakePose3Bridge = new Pose(mirror(85), 37, Math.toRadians(180 - 90));
+    public final Pose intakePose3 = new Pose(mirror(130), 35, Math.toRadians(180 - 180));
 
     // Paths
     private Path scorePreload;
     private PathChain grabSample1, scoreSample1, grabSample2, grabSample2b, scoreSample2, grabSample3, grabSample3b, scoreSample3;
+
+    /**
+     * Mirror X coordinate for blue alliance
+     */
+    private double mirror(double x) {
+        return 2 * FIELD_CENTER_X - x;
+    }
 
     /**
      * Build all autonomous paths
@@ -120,33 +128,31 @@ public class RedCloseAuto extends OpMode {
                 .setTangentHeadingInterpolation()
                 .build();
 
-        // Grab third sample - goes to intermediate position first
+        // Grab third sample - L-shaped path with bridge
         grabSample3 = follower.pathBuilder()
-                .addPath(new BezierLine(shootPose, intakePose3))
+                .addPath(new BezierLine(shootPose, intakePose3Bridge))
                 .setTangentHeadingInterpolation()
                 .build();
         
-        // Move to actual sample position
+        // Complete the L to sample 3
         grabSample3b = follower.pathBuilder()
-                .addPath(new BezierLine(intakePose3, intakePose3b))
+                .addPath(new BezierLine(intakePose3Bridge, intakePose3))
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Score third sample
         scoreSample3 = follower.pathBuilder()
-                .addPath(new BezierLine(intakePose3b, shootPose))
+                .addPath(new BezierLine(intakePose3, shootPose))
                 .setTangentHeadingInterpolation()
                 .build();
     }
 
     /**
      * Score samples into basket
-     * Settles for 0.5s, revs shooter for 3s, opens blocker, runs intake for 3s
-     * Repeats for 2 samples total
      */
     private void scoreSequence() {
         switch (scoreState) {
-            case 0: // Settle/re-aim before shooting (0.5 seconds)
+            case 0: // Settle/re-aim before shooting
                 blocker.setPosition(BLOCKER_CLOSED);
                 shooter.setVelocity(0);
                 intake.setPower(0);
@@ -162,16 +168,16 @@ public class RedCloseAuto extends OpMode {
                 }
                 break;
                 
-            case 2: // Wait for shooter to rev up (3 seconds)
+            case 2: // Wait for shooter to rev up
                 if (actionTimer.getElapsedTimeSeconds() >= REV_UP_TIME) {
                     blocker.setPosition(BLOCKER_OPEN);
-                    intake.setPower(INTAKE_FEED_POWER);  // Slower power to feed into shooter
+                    intake.setPower(INTAKE_FEED_POWER);
                     actionTimer.resetTimer();
                     scoreState++;
                 }
                 break;
                 
-            case 3: // Push first sample through (3 seconds)
+            case 3: // Push first sample through
                 if (actionTimer.getElapsedTimeSeconds() >= PUSH_TIME) {
                     intake.setPower(0);
                     blocker.setPosition(BLOCKER_CLOSED);
@@ -180,16 +186,16 @@ public class RedCloseAuto extends OpMode {
                 }
                 break;
                 
-            case 4: // Rev up for second sample (3 seconds)
+            case 4: // Rev up for second sample
                 if (actionTimer.getElapsedTimeSeconds() >= REV_UP_TIME) {
                     blocker.setPosition(BLOCKER_OPEN);
-                    intake.setPower(INTAKE_FEED_POWER);  // Slower power to feed into shooter
+                    intake.setPower(INTAKE_FEED_POWER);
                     actionTimer.resetTimer();
                     scoreState++;
                 }
                 break;
                 
-            case 5: // Push second sample through (3 seconds)
+            case 5: // Push second sample through
                 if (actionTimer.getElapsedTimeSeconds() >= PUSH_TIME) {
                     intake.setPower(0);
                     blocker.setPosition(BLOCKER_CLOSED);
@@ -199,7 +205,6 @@ public class RedCloseAuto extends OpMode {
                 break;
                 
             case 6: // Scoring complete
-                // Wait for next state to reset
                 break;
         }
     }
@@ -234,7 +239,7 @@ public class RedCloseAuto extends OpMode {
                     scoreSequence();
                     if (scoringComplete()) {
                         resetScoring();
-                        intake.setPower(INTAKE_PICKUP_POWER);  // Full power for ground pickup
+                        intake.setPower(INTAKE_PICKUP_POWER);
                         follower.followPath(grabSample1, true);
                         setPathState(2);
                     }
@@ -250,9 +255,7 @@ public class RedCloseAuto extends OpMode {
                 break;
 
             case 3: // Return to shoot position, start revving when close
-                // Check if we're close to target (within ~10 inches) and start revving
                 if (!follower.isBusy()) {
-                    // Path complete, check if shooter is at speed
                     shooter.setVelocity(getTickSpeed(SHOOTER_RPM));
                     if (isShooterAtSpeed()) {
                         setPathState(4);
@@ -273,7 +276,7 @@ public class RedCloseAuto extends OpMode {
                 scoreSequence();
                 if (scoringComplete()) {
                     resetScoring();
-                    intake.setPower(INTAKE_PICKUP_POWER);  // Full power for ground pickup
+                    intake.setPower(INTAKE_PICKUP_POWER);
                     follower.followPath(grabSample2, true);
                     setPathState(5);
                 }
@@ -316,15 +319,14 @@ public class RedCloseAuto extends OpMode {
                 scoreSequence();
                 if (scoringComplete()) {
                     resetScoring();
-                    intake.setPower(INTAKE_PICKUP_POWER);  // Full power for ground pickup
+                    intake.setPower(INTAKE_PICKUP_POWER);
                     follower.followPath(grabSample3, true);
                     setPathState(9);
                 }
                 break;
 
-            case 9: // Move to intermediate position for third sample (intake running)
+            case 9: // Move to bridge for third sample (intake running)
                 if (!follower.isBusy()) {
-                    // Keep intake running through both paths
                     follower.followPath(grabSample3b, true);
                     setPathState(10);
                 }
@@ -359,7 +361,7 @@ public class RedCloseAuto extends OpMode {
                 scoreState = 2;  // Skip settle and rev - already done
                 scoreSequence();
                 if (scoringComplete()) {
-                    setPathState(-1); // Done - no parking
+                    setPathState(-1); // Done
                 }
                 break;
         }
@@ -383,16 +385,14 @@ public class RedCloseAuto extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
 
-        // Hardware mapping - NOTE: shooter/intake are swapped in hardware config
-        shooter = hardwareMap.get(DcMotorEx.class, "intakeMotor");  // Actual shooter motor
-        intake = hardwareMap.get(DcMotorEx.class, "shooterMotor");  // Actual intake motor
+        // Hardware mapping
+        shooter = hardwareMap.get(DcMotorEx.class, "intakeMotor");
+        intake = hardwareMap.get(DcMotorEx.class, "shooterMotor");
         blocker = hardwareMap.get(Servo.class, "blocker");
 
-        // Shooter setup (this is the actual shooter, mapped to "intakeMotor")
         shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // Intake setup (this is the actual intake, mapped to "shooterMotor")
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
         
@@ -401,19 +401,17 @@ public class RedCloseAuto extends OpMode {
         limelight.pipelineSwitch(0);
         limelight.start();
 
-        // Build paths
         buildPaths();
 
-        telemetry.addLine("Blue - Close (Goal) Initialized");
-        telemetry.addLine("NOTE: Shooter is 'intakeMotor', Intake is 'shooterMotor'");
+        telemetry.addLine("Red - Far Initialized");
         telemetry.update();
     }
 
     @Override
     public void start() {
         opmodeTimer.resetTimer();
-        blocker.setPosition(0.3);
-        shooter.setVelocity(getTickSpeed(SHOOTER_RPM));  // Start revving immediately
+        blocker.setPosition(BLOCKER_CLOSED);
+        shooter.setVelocity(getTickSpeed(SHOOTER_RPM));
         setPathState(0);
     }
 
@@ -431,20 +429,16 @@ public class RedCloseAuto extends OpMode {
                 LLResultTypes.FiducialResult tag = fiducials.get(0);
                 int tagId = (int) tag.getFiducialId();
                 
-                // Only use Red Goal tag (24) for position correction in auto
-                if (tagId == 24) {
-                    double[] tagFieldPos = RED_TAG_POSITIONS[0];  // Tag 24
+                if (tagId == 14) {
+                    double[] tagFieldPos = BLUE_TAG_POSITIONS[0];
                     Pose3D robotPose = tag.getRobotPoseFieldSpace();
                     
-                    // Calculate corrected position
                     double llX = tagFieldPos[0] + (robotPose.getPosition().x * 39.3701);
                     double llY = tagFieldPos[1] - (robotPose.getPosition().y * 39.3701);
                     
-                    // Blend with odometry
                     double correctedX = (1.0 - LIMELIGHT_WEIGHT) * odoX + LIMELIGHT_WEIGHT * llX;
                     double correctedY = (1.0 - LIMELIGHT_WEIGHT) * odoY + LIMELIGHT_WEIGHT * llY;
                     
-                    // Update follower position
                     follower.setPose(new Pose(correctedX, correctedY, follower.getPose().getHeading()));
                 }
             }
@@ -460,14 +454,12 @@ public class RedCloseAuto extends OpMode {
         updateLocalization();
         autonomousPathUpdate();
 
-        // Telemetry
         telemetry.addData("Path State", pathState);
         telemetry.addData("Score State", scoreState);
         telemetry.addData("X", follower.getPose().getX());
         telemetry.addData("Y", follower.getPose().getY());
         telemetry.addData("Heading", Math.toDegrees(follower.getPose().getHeading()));
         telemetry.addData("Shooter RPM", shooter.getVelocity() * 60 / TICKS_PER_REV);
-        telemetry.addData("Blocker", blocker.getPosition());
         telemetry.update();
     }
 

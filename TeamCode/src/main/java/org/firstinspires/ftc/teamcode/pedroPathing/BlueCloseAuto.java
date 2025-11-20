@@ -21,8 +21,8 @@ import java.util.List;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Blue - Close (Goal)", group = "Competition")
-public class RedCloseAuto extends OpMode {
+@Autonomous(name = "Red - Close (Goal)", group = "Competition")
+public class BlueCloseAuto extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, opmodeTimer, actionTimer;
@@ -61,26 +61,36 @@ public class RedCloseAuto extends OpMode {
     private static final double BLOCKER_OPEN = 0.175;  // From Rango
     private static final double BLOCKER_CLOSED = 0.3;  // From Rango
     
-    // AprilTag positions for localization (Red alliance)
-    private static final double[][] RED_TAG_POSITIONS = {
-        {135.24, 47.25},   // Tag 24 - Red Goal
-        {135.24, 70.62},   // Tag 25 - Motif 21
-        {135.24, 93.99},   // Tag 26 - Motif 22
-        {135.24, 117.36}   // Tag 27 - Motif 23
+    // AprilTag positions for localization (Blue alliance) - mirrored X
+    private static final double[][] BLUE_TAG_POSITIONS = {
+        {6.0, 47.25},    // Tag 14 - Blue Goal (141.24 - 135.24 = 6.0)
+        {6.0, 70.62},    // Tag 15 - Motif 11
+        {6.0, 93.99},    // Tag 16 - Motif 12
+        {6.0, 117.36}    // Tag 17 - Motif 13
     };
 
-    // Poses for Red Close starting position (Observation Zone - audience wall)
-    public final Pose startPose = new Pose(81.5, 131.5, Math.toRadians(0));  // Audience wall, facing toward field
-    public final Pose shootPose = new Pose(75, 81, Math.toRadians(45));  // Shooting position near red processor
-    public final Pose intakePose1 = new Pose(130, 84, Math.toRadians(180));  // First sample - butt facing sample
-    public final Pose intakePose2Bridge = new Pose(85, 60, Math.toRadians(135));  // Bridge for sample 2
-    public final Pose intakePose2 = new Pose(130, 59, Math.toRadians(180));  // Second sample - butt facing sample
-    public final Pose intakePose3 = new Pose(85, 37, Math.toRadians(90));  // Third sample intermediate
-    public final Pose intakePose3b = new Pose(130, 35, Math.toRadians(180));  // Third sample - butt facing sample
+    // Field center for mirroring
+    private static final double FIELD_CENTER_X = 141.24 / 2.0;  // 70.62
+
+    // Poses for Blue Close starting position (Observation Zone - audience wall) - mirrored from Red
+    public final Pose startPose = new Pose(mirror(81.5), 131.5, Math.toRadians(180));  // Mirrored and heading reversed
+    public final Pose shootPose = new Pose(mirror(75), 81, Math.toRadians(135));  // Mirrored heading (180 - 45 = 135)
+    public final Pose intakePose1 = new Pose(mirror(130), 84, Math.toRadians(0));  // Mirrored heading (180 - 180 = 0)
+    public final Pose intakePose2Bridge = new Pose(mirror(85), 60, Math.toRadians(45));  // Mirrored heading (180 - 135 = 45)
+    public final Pose intakePose2 = new Pose(mirror(130), 59, Math.toRadians(0));  // Mirrored heading
+    public final Pose intakePose3 = new Pose(mirror(85), 37, Math.toRadians(90));  // Heading stays same (perpendicular)
+    public final Pose intakePose3b = new Pose(mirror(130), 35, Math.toRadians(0));  // Mirrored heading
 
     // Paths
     private Path scorePreload;
     private PathChain grabSample1, scoreSample1, grabSample2, grabSample2b, scoreSample2, grabSample3, grabSample3b, scoreSample3;
+
+    /**
+     * Mirror X coordinate across field center
+     */
+    private double mirror(double x) {
+        return 2 * FIELD_CENTER_X - x;
+    }
 
     /**
      * Build all autonomous paths
@@ -140,16 +150,12 @@ public class RedCloseAuto extends OpMode {
     }
 
     /**
-     * Score samples into basket
-     * Settles for 0.5s, revs shooter for 3s, opens blocker, runs intake for 3s
-     * Repeats for 2 samples total
+     * Scoring sequence state machine - handles multiple samples
      */
     private void scoreSequence() {
-        switch (scoreState) {
-            case 0: // Settle/re-aim before shooting (0.5 seconds)
+        switch(scoreState) {
+            case 0: // Move blocker to closed, start settle timer
                 blocker.setPosition(BLOCKER_CLOSED);
-                shooter.setVelocity(0);
-                intake.setPower(0);
                 actionTimer.resetTimer();
                 scoreState++;
                 break;
@@ -194,12 +200,8 @@ public class RedCloseAuto extends OpMode {
                     intake.setPower(0);
                     blocker.setPosition(BLOCKER_CLOSED);
                     shooter.setVelocity(0);
-                    scoreState++;
+                    scoreState++;  // Done
                 }
-                break;
-                
-            case 6: // Scoring complete
-                // Wait for next state to reset
                 break;
         }
     }
@@ -379,24 +381,24 @@ public class RedCloseAuto extends OpMode {
         opmodeTimer = new Timer();
         actionTimer = new Timer();
 
-        // Initialize follower with Pedro Pathing
+        // Setup Pedro Pathing follower
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
 
-        // Hardware mapping - NOTE: shooter/intake are swapped in hardware config
+        // Hardware setup
         shooter = hardwareMap.get(DcMotorEx.class, "intakeMotor");  // Actual shooter motor
         intake = hardwareMap.get(DcMotorEx.class, "shooterMotor");  // Actual intake motor
         blocker = hardwareMap.get(Servo.class, "blocker");
 
-        // Shooter setup (this is the actual shooter, mapped to "intakeMotor")
+        // Configure shooter with encoder for velocity control
         shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // Intake setup (this is the actual intake, mapped to "shooterMotor")
+        // Intake doesn't need encoder
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
-        
-        // Limelight setup
+
+        // Setup Limelight
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.pipelineSwitch(0);
         limelight.start();
@@ -404,7 +406,7 @@ public class RedCloseAuto extends OpMode {
         // Build paths
         buildPaths();
 
-        telemetry.addLine("Blue - Close (Goal) Initialized");
+        telemetry.addLine("Red - Close (Goal) Initialized");
         telemetry.addLine("NOTE: Shooter is 'intakeMotor', Intake is 'shooterMotor'");
         telemetry.update();
     }
@@ -428,24 +430,25 @@ public class RedCloseAuto extends OpMode {
         if (result != null && result.isValid()) {
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
             if (!fiducials.isEmpty()) {
-                LLResultTypes.FiducialResult tag = fiducials.get(0);
-                int tagId = (int) tag.getFiducialId();
-                
-                // Only use Red Goal tag (24) for position correction in auto
-                if (tagId == 24) {
-                    double[] tagFieldPos = RED_TAG_POSITIONS[0];  // Tag 24
-                    Pose3D robotPose = tag.getRobotPoseFieldSpace();
+                for (LLResultTypes.FiducialResult tag : fiducials) {
+                    int tagId = (int) tag.getFiducialId();
                     
-                    // Calculate corrected position
-                    double llX = tagFieldPos[0] + (robotPose.getPosition().x * 39.3701);
-                    double llY = tagFieldPos[1] - (robotPose.getPosition().y * 39.3701);
-                    
-                    // Blend with odometry
-                    double correctedX = (1.0 - LIMELIGHT_WEIGHT) * odoX + LIMELIGHT_WEIGHT * llX;
-                    double correctedY = (1.0 - LIMELIGHT_WEIGHT) * odoY + LIMELIGHT_WEIGHT * llY;
-                    
-                    // Update follower position
-                    follower.setPose(new Pose(correctedX, correctedY, follower.getPose().getHeading()));
+                    // Only use Blue Goal tag (14) for position correction
+                    if (tagId == 14) {
+                        double[] tagFieldPos = BLUE_TAG_POSITIONS[0];  // Tag 14
+                        Pose3D robotPose = tag.getRobotPoseFieldSpace();
+                        
+                        // Convert meters to inches and apply field coordinates
+                        double llX = tagFieldPos[0] - (robotPose.getPosition().x * 39.3701);  // Reversed for blue side
+                        double llY = tagFieldPos[1] - (robotPose.getPosition().y * 39.3701);
+                        
+                        // Weighted sensor fusion (85% Limelight, 15% odometry)
+                        double correctedX = (1.0 - LIMELIGHT_WEIGHT) * odoX + LIMELIGHT_WEIGHT * llX;
+                        double correctedY = (1.0 - LIMELIGHT_WEIGHT) * odoY + LIMELIGHT_WEIGHT * llY;
+                        
+                        // Update follower pose
+                        follower.setPose(new Pose(correctedX, correctedY, follower.getPose().getHeading()));
+                    }
                 }
             }
         }
@@ -453,7 +456,7 @@ public class RedCloseAuto extends OpMode {
         lastOdoX = odoX;
         lastOdoY = odoY;
     }
-    
+
     @Override
     public void loop() {
         follower.update();
@@ -473,6 +476,9 @@ public class RedCloseAuto extends OpMode {
 
     @Override
     public void stop() {
+        shooter.setVelocity(0);
+        intake.setPower(0);
+        blocker.setPosition(BLOCKER_CLOSED);
     }
 
     /**

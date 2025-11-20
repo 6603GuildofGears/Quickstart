@@ -177,9 +177,11 @@
             <div class="control-group">
                 <label>Select Autonomous</label>
                 <select id="autoSelect">
-                    <option value="RedCloseAuto">Red Close Auto (Observation Zone)</option>
+                    <option value="RedCloseAuto">Blue - Close (Goal)</option>
+                    <option value="BlueCloseAuto">Red - Close (Goal)</option>
+                    <option value="RedFarAuto">Blue - Far</option>
+                    <option value="BlueFarAuto">Red - Far</option>
                     <option value="RedSimpleAuto">Red Simple Auto (3 Preloads)</option>
-                    <option value="RedFarAuto">Red Far Auto (Net Zone)</option>
                 </select>
             </div>
             
@@ -281,34 +283,47 @@
         // Autonomous programs data
         const autonomousPrograms = {
             RedCloseAuto: {
-                name: "Red Close Auto",
+                name: "Blue - Close (Goal)",
                 startPose: { x: 81.5, y: 131.5, heading: 0 },
                 paths: [
-                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Drive to shooting position" },
-                    { type: "action", duration: 0.5, action: "Settle" },
-                    { type: "action", duration: 3.0, action: "Rev shooter to 3700 RPM" },
+                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Drive to shooting (revving)" },
                     { type: "action", duration: 0.3, action: "Open blocker" },
                     { type: "action", duration: 3.0, action: "Push sample 1 through" },
-                    { type: "drive", end: { x: 130, y: 84, heading: 0 }, action: "Drive to sample 1" },
-                    { type: "action", duration: 1.0, action: "Intake sample 1" },
-                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting" },
-                    { type: "action", duration: 0.5, action: "Settle" },
-                    { type: "action", duration: 3.0, action: "Rev shooter" },
+                    { type: "drive", end: { x: 130, y: 84, heading: 180 }, action: "Drive to sample 1 (intake running)" },
+                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting (revving)" },
                     { type: "action", duration: 0.3, action: "Open blocker" },
                     { type: "action", duration: 3.0, action: "Push sample 2 through" },
-                    { type: "drive", end: { x: 130, y: 55, heading: 0 }, action: "Drive to sample 2" },
-                    { type: "action", duration: 1.0, action: "Intake sample 2" },
-                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting" },
-                    { type: "action", duration: 0.5, action: "Settle" },
-                    { type: "action", duration: 3.0, action: "Rev shooter" },
+                    { type: "drive", end: { x: 85, y: 60, heading: 135 }, action: "Bridge to sample 2 (intake running)" },
+                    { type: "drive", end: { x: 130, y: 55, heading: 180 }, action: "Drive to sample 2 (intake running)" },
+                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting (revving)" },
                     { type: "action", duration: 0.3, action: "Open blocker" },
                     { type: "action", duration: 3.0, action: "Push sample 3 through" },
-                    { type: "drive", end: { x: 85, y: 37, heading: 0 }, action: "Move to sample 3 position" },
-                    { type: "drive", end: { x: 130, y: 35, heading: 0 }, action: "Grab sample 3" },
-                    { type: "action", duration: 1.0, action: "Intake sample 3" },
-                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting" },
-                    { type: "action", duration: 0.5, action: "Settle" },
-                    { type: "action", duration: 3.0, action: "Rev shooter" },
+                    { type: "drive", end: { x: 85, y: 37, heading: 90 }, action: "Bridge to sample 3 (intake running)" },
+                    { type: "drive", end: { x: 130, y: 35, heading: 180 }, action: "Drive to sample 3 (intake running)" },
+                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 4 through" }
+                ]
+            },
+            BlueCloseAuto: {
+                name: "Red - Close (Goal)",
+                startPose: { x: 59.74, y: 131.5, heading: 180 },
+                paths: [
+                    { type: "drive", end: { x: 66.24, y: 81, heading: 135 }, action: "Drive to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 1 through" },
+                    { type: "drive", end: { x: 11.24, y: 84, heading: 0 }, action: "Drive to sample 1 (intake running)" },
+                    { type: "drive", end: { x: 66.24, y: 81, heading: 135 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 2 through" },
+                    { type: "drive", end: { x: 56.24, y: 60, heading: 45 }, action: "Bridge to sample 2 (intake running)" },
+                    { type: "drive", end: { x: 11.24, y: 59, heading: 0 }, action: "Drive to sample 2 (intake running)" },
+                    { type: "drive", end: { x: 66.24, y: 81, heading: 135 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 3 through" },
+                    { type: "drive", end: { x: 56.24, y: 37, heading: 90 }, action: "Bridge to sample 3 (intake running)" },
+                    { type: "drive", end: { x: 11.24, y: 35, heading: 0 }, action: "Drive to sample 3 (intake running)" },
+                    { type: "drive", end: { x: 66.24, y: 81, heading: 135 }, action: "Return to shooting (revving)" },
                     { type: "action", duration: 0.3, action: "Open blocker" },
                     { type: "action", duration: 3.0, action: "Push sample 4 through" }
                 ]
@@ -325,14 +340,49 @@
                 ]
             },
             RedFarAuto: {
-                name: "Red Far Auto",
-                startPose: { x: 135, y: 85, heading: 180 },
+                name: "Blue - Far",
+                startPose: { x: 90, y: 9, heading: 270 },
                 paths: [
-                    { type: "drive", end: { x: 110, y: 25, heading: 45 }, action: "Drive to shooting position" },
-                    { type: "action", duration: 0.5, action: "Settle" },
-                    { type: "action", duration: 3.0, action: "Rev shooter to 3700 RPM" },
+                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Drive to shooting (revving)" },
                     { type: "action", duration: 0.3, action: "Open blocker" },
-                    { type: "action", duration: 3.0, action: "Push 3 preloaded samples" }
+                    { type: "action", duration: 3.0, action: "Push sample 1 through" },
+                    { type: "drive", end: { x: 130, y: 84, heading: 180 }, action: "Drive to sample 1 (intake running)" },
+                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 2 through" },
+                    { type: "drive", end: { x: 85, y: 60, heading: 135 }, action: "Bridge to sample 2 (intake running)" },
+                    { type: "drive", end: { x: 130, y: 59, heading: 180 }, action: "Drive to sample 2 (intake running)" },
+                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 3 through" },
+                    { type: "drive", end: { x: 85, y: 37, heading: 90 }, action: "Bridge to sample 3 (intake running)" },
+                    { type: "drive", end: { x: 130, y: 35, heading: 180 }, action: "Drive to sample 3 (intake running)" },
+                    { type: "drive", end: { x: 75, y: 81, heading: 45 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 4 through" }
+                ]
+            },
+            BlueFarAuto: {
+                name: "Red - Far",
+                startPose: { x: 51.24, y: 9, heading: 270 },
+                paths: [
+                    { type: "drive", end: { x: 66.24, y: 81, heading: 135 }, action: "Drive to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 1 through" },
+                    { type: "drive", end: { x: 11.24, y: 84, heading: 0 }, action: "Drive to sample 1 (intake running)" },
+                    { type: "drive", end: { x: 66.24, y: 81, heading: 135 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 2 through" },
+                    { type: "drive", end: { x: 56.24, y: 60, heading: 45 }, action: "Bridge to sample 2 (intake running)" },
+                    { type: "drive", end: { x: 11.24, y: 59, heading: 0 }, action: "Drive to sample 2 (intake running)" },
+                    { type: "drive", end: { x: 66.24, y: 81, heading: 135 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 3 through" },
+                    { type: "drive", end: { x: 56.24, y: 37, heading: 90 }, action: "Bridge to sample 3 (intake running)" },
+                    { type: "drive", end: { x: 11.24, y: 35, heading: 0 }, action: "Drive to sample 3 (intake running)" },
+                    { type: "drive", end: { x: 66.24, y: 81, heading: 135 }, action: "Return to shooting (revving)" },
+                    { type: "action", duration: 0.3, action: "Open blocker" },
+                    { type: "action", duration: 3.0, action: "Push sample 4 through" }
                 ]
             }
         };
@@ -636,7 +686,7 @@
                 const start = { x: robot.x, y: robot.y, heading: robot.heading };
                 const end = currentPath.end;
                 const distance = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
-                const duration = distance / 30;  // ~30 inches per second (realistic FTC speed)
+                const duration = distance / 3;  // ~5 inches per second (slower, more realistic visual speed)
                 
                 currentPathProgress += deltaTime / duration;
                 
@@ -701,6 +751,13 @@
             const deltaTime = ((now - (startTime || now)) / 1000) * speed;
             startTime = now;
             elapsedTime += deltaTime;
+            
+            // Auto-stop at 30 seconds (autonomous period)
+            if (elapsedTime >= 30) {
+                stopSimulation();
+                document.getElementById('currentAction').textContent = 'Time Limit Reached (30s)';
+                return;
+            }
             
             updateRobot(deltaTime);
             

@@ -193,7 +193,7 @@ public class RedFarAuto extends OpMode {
         // Build paths
         buildPaths();
 
-        telemetry.addLine("Red Far Auto Initialized");
+        telemetry.addLine("Blue - Far Initialized");
         telemetry.addLine("Starts from far tile, drives to basket, shoots 3 preloads");
         telemetry.update();
     }
