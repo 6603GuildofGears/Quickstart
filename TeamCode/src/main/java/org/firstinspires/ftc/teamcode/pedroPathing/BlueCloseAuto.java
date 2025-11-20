@@ -42,6 +42,15 @@ public class BlueCloseAuto extends OpMode {
     private double lastOdoY = 0;
     public static double LIMELIGHT_WEIGHT = 0.85;
 
+    // Limelight/odometry fusion safety and timeouts
+    private boolean limelightActive = false;
+    private int limelightUpdateCount = 0;
+    private static final double MAX_PATH_TIME = 8.0;  // Max seconds per path
+    private static final double MAX_AUTO_TIME = 29.5;  // Stop before 30s auto period ends
+    private static final double MAX_LIMELIGHT_CORRECTION = 12.0;  // Max inches to correct in one update
+    private static final double FIELD_MIN = 0.0;
+    private static final double FIELD_MAX = 141.24;
+
     private final double TICKS_PER_REV = 28;
     
     // Scoring constants
@@ -426,6 +435,7 @@ public class BlueCloseAuto extends OpMode {
         double odoX = follower.getPose().getX();
         double odoY = follower.getPose().getY();
         
+        limelightActive = false;
         LLResult result = limelight.getLatestResult();
         if (result != null && result.isValid()) {
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
@@ -442,12 +452,22 @@ public class BlueCloseAuto extends OpMode {
                         double llX = tagFieldPos[0] - (robotPose.getPosition().x * 39.3701);  // Reversed for blue side
                         double llY = tagFieldPos[1] - (robotPose.getPosition().y * 39.3701);
                         
-                        // Weighted sensor fusion (85% Limelight, 15% odometry)
-                        double correctedX = (1.0 - LIMELIGHT_WEIGHT) * odoX + LIMELIGHT_WEIGHT * llX;
-                        double correctedY = (1.0 - LIMELIGHT_WEIGHT) * odoY + LIMELIGHT_WEIGHT * llY;
-                        
-                        // Update follower pose
-                        follower.setPose(new Pose(correctedX, correctedY, follower.getPose().getHeading()));
+                        // Sanity check: reject if correction is too large
+                        double correctionDist = Math.hypot(llX - odoX, llY - odoY);
+                        if (correctionDist < MAX_LIMELIGHT_CORRECTION) {
+                            // Weighted sensor fusion (85% Limelight, 15% odometry)
+                            double correctedX = (1.0 - LIMELIGHT_WEIGHT) * odoX + LIMELIGHT_WEIGHT * llX;
+                            double correctedY = (1.0 - LIMELIGHT_WEIGHT) * odoY + LIMELIGHT_WEIGHT * llY;
+                            
+                            // Boundary clamp
+                            correctedX = Math.max(FIELD_MIN, Math.min(FIELD_MAX, correctedX));
+                            correctedY = Math.max(FIELD_MIN, Math.min(FIELD_MAX, correctedY));
+                            
+                            // Update follower pose
+                            follower.setPose(new Pose(correctedX, correctedY, follower.getPose().getHeading()));
+                            limelightActive = true;
+                            limelightUpdateCount++;
+                        }
                     }
                 }
             }
@@ -459,6 +479,20 @@ public class BlueCloseAuto extends OpMode {
 
     @Override
     public void loop() {
+        // Emergency stop if auto period is ending
+        if (opmodeTimer.getElapsedTimeSeconds() > MAX_AUTO_TIME) {
+            shooter.setVelocity(0);
+            intake.setPower(0);
+            requestOpModeStop();
+            return;
+        }
+        
+        // Path timeout check - skip to next state if stuck too long
+        if (follower.isBusy() && pathTimer.getElapsedTimeSeconds() > MAX_PATH_TIME) {
+            telemetry.addData("WARNING", "Path timeout - skipping");
+            follower.breakFollowing();
+        }
+        
         follower.update();
         updateLocalization();
         autonomousPathUpdate();
@@ -466,11 +500,12 @@ public class BlueCloseAuto extends OpMode {
         // Telemetry
         telemetry.addData("Path State", pathState);
         telemetry.addData("Score State", scoreState);
-        telemetry.addData("X", follower.getPose().getX());
-        telemetry.addData("Y", follower.getPose().getY());
-        telemetry.addData("Heading", Math.toDegrees(follower.getPose().getHeading()));
-        telemetry.addData("Shooter RPM", shooter.getVelocity() * 60 / TICKS_PER_REV);
-        telemetry.addData("Blocker", blocker.getPosition());
+        telemetry.addData("X", "%.1f\"", follower.getPose().getX());
+        telemetry.addData("Y", "%.1f\"", follower.getPose().getY());
+        telemetry.addData("Heading", "%.0f°", Math.toDegrees(follower.getPose().getHeading()));
+        telemetry.addData("Shooter RPM", "%.0f", shooter.getVelocity() * 60 / TICKS_PER_REV);
+        telemetry.addData("Limelight", limelightActive ? "✓ (" + limelightUpdateCount + ")" : "✗");
+        telemetry.addData("Time", "%.1fs", opmodeTimer.getElapsedTimeSeconds());
         telemetry.update();
     }
 
