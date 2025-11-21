@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
+//TOY WITH THIS AUTO
+
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -25,10 +27,10 @@ public class RedSimpleAuto extends OpMode {
     private Servo blocker;
     
     // Constants
-    private static final double SHOOTER_RPM = 100;
+    private static final double SHOOTER_RPM = 3000;
     private static final double TICKS_PER_REV = 28.0;  // GoBilda 5202/5203 encoder
-    private static final double RPM_TOLERANCE = 50;
-    private static final double BLOCKER_UP_POS = 0.2;    // Open position (inverted)
+    private static final double RPM_TOLERANCE = 300;
+    private static final double BLOCKER_UP_POS = 0.175;    // Open position (inverted)
     private static final double BLOCKER_DOWN_POS = 0.3;  // Closed position (inverted)
     
     private ElapsedTime runtime = new ElapsedTime();
@@ -79,7 +81,7 @@ public class RedSimpleAuto extends OpMode {
     public void loop() {
         if (isDriving && runtime.seconds() < 1.75) {
             // Drive backwards and rotate to 45°
-            double drive = -0.5;    // Backward
+            double drive = -0.3875;    // Backward
             double turn = 0.25;     // Rotate counterclockwise
             
             frontLeftDrive.setPower(drive);  // -0.75
@@ -89,10 +91,10 @@ public class RedSimpleAuto extends OpMode {
 
             //TURN to shoot, from start
         } else if(isDriving && runtime.seconds() >= 1.75 && runtime.seconds() < 2.375 ) {
-            frontLeftDrive.setPower(0.35);
-            frontRightDrive.setPower(-0.35);
-            backLeftDrive.setPower(0.35);
-            backRightDrive.setPower(-0.35);
+            frontLeftDrive.setPower(0.3);
+            frontRightDrive.setPower(-0.3);
+            backLeftDrive.setPower(0.3);
+            backRightDrive.setPower(-0.3);
             //SHOOT SEQUENCE
         } else if(isDriving && runtime.seconds() >= 2.375 && runtime.seconds() < 8.25 ) { // Stop motors after 2 seconds
             frontLeftDrive.setPower(0);
@@ -101,7 +103,7 @@ public class RedSimpleAuto extends OpMode {
             backRightDrive.setPower(0);
 
             shooter.setVelocity(getTickSpeed(SHOOTER_RPM));
-            if (isShooterAtSpeed()) {
+            if (runtime.seconds() > 4.375) {
                 blocker.setPosition(BLOCKER_UP_POS);
                 intake.setPower(0.5);
             }
@@ -112,32 +114,34 @@ public class RedSimpleAuto extends OpMode {
             }
             //ROTATE to INTAKE
         } else if(isDriving && runtime.seconds() >= 8.25  && runtime.seconds() < 9.25 ) {
-            frontLeftDrive.setPower(-0.6);
-            backLeftDrive.setPower(-0.6);
-            frontRightDrive.setPower(0.6);
-            backRightDrive.setPower(0.6);
+            shooter.setPower(0);
+
+            frontLeftDrive.setPower(-0.5);
+            backLeftDrive.setPower(-0.5);
+            frontRightDrive.setPower(0.5);
+            backRightDrive.setPower(0.5);
+
+            intake.setPower(0.875);
             //DRIVE to INTAKE1
         } else if(isDriving && runtime.seconds() >= 9.25  && runtime.seconds() < 10.75 ) {
-            frontLeftDrive.setPower(-0.625);
-            frontRightDrive.setPower(-0.625);
-            backLeftDrive.setPower(-0.625);
-            backRightDrive.setPower(-0.625);
-            if(runtime.seconds() >= 9 ){
-                intake.setPower(0.875);
-            }
+            frontLeftDrive.setPower(-0.45);
+            frontRightDrive.setPower(-0.45);
+            backLeftDrive.setPower(-0.45);
+            backRightDrive.setPower(-0.45);
+
             //BACK to shoot
         } else if(isDriving && runtime.seconds() >= 10.75  && runtime.seconds() < 12.25 ) {
-            frontLeftDrive.setPower(0.625);
-            frontRightDrive.setPower(0.625);
-            backLeftDrive.setPower(0.625);
-            backRightDrive.setPower(0.625);
+            frontLeftDrive.setPower(0.35);
+            frontRightDrive.setPower(0.35);
+            backLeftDrive.setPower(0.35);
+            backRightDrive.setPower(0.35);
             intake.setPower(0);
             //TURN to shoot, from intake1
         } else if(isDriving && runtime.seconds() >= 12.25  && runtime.seconds() < 13.25 ) {
-            frontLeftDrive.setPower(0.6);
-            backLeftDrive.setPower(0.6);
-            frontRightDrive.setPower(-0.6);
-            backRightDrive.setPower(-0.6);
+            frontLeftDrive.setPower(0.45);
+            backLeftDrive.setPower(0.45);
+            frontRightDrive.setPower(-0.45);
+            backRightDrive.setPower(-0.45);
             //Shoot sequence
         } else if(isDriving && runtime.seconds() >= 13.25  && runtime.seconds() < 19.375 ) {
             frontLeftDrive.setPower(0);
@@ -146,33 +150,35 @@ public class RedSimpleAuto extends OpMode {
             backRightDrive.setPower(0);
 
             shooter.setVelocity(getTickSpeed(SHOOTER_RPM));
-            if (isShooterAtSpeed()) {
+            if (runtime.seconds() > 15) {
                 blocker.setPosition(BLOCKER_UP_POS);
                 intake.setPower(0.5);
             }
-            if(runtime.seconds() >= 8.625 ){
+            if(runtime.seconds() >= 18.5 ){
                 shooter.setPower(0);
                 intake.setPower(0);
                 blocker.setPosition(BLOCKER_DOWN_POS);
             }
         } else if(isDriving && runtime.seconds() >= 19.375  && runtime.seconds() < 19.75 ) {
             // Turn to bridge Intake 2
+            shooter.setPower(0);
+
             frontLeftDrive.setPower(-0.5);
             backLeftDrive.setPower(-0.5);
             frontRightDrive.setPower(0.5);
             backRightDrive.setPower(0.5);
         } else if(isDriving && runtime.seconds() >= 19.75  && runtime.seconds() < 20.25 ) {
             // Drive to Intake 2 bridge point
-            frontLeftDrive.setPower(-0.75);
-            frontRightDrive.setPower(-0.75);
-            backLeftDrive.setPower(-0.75);
-            backRightDrive.setPower(-0.75);
+            frontLeftDrive.setPower(-0.5);
+            frontRightDrive.setPower(-0.5);
+            backLeftDrive.setPower(-0.5);
+            backRightDrive.setPower(-0.5);
         } else if(isDriving && runtime.seconds() >= 20.25  && runtime.seconds() < 21 ) {
             // Turn to intake 2, from bridge
-            frontLeftDrive.setPower(-0.65);
-            backLeftDrive.setPower(-0.65);
-            frontRightDrive.setPower(0.65);
-            backRightDrive.setPower(0.65);
+            frontLeftDrive.setPower(-0.5);
+            backLeftDrive.setPower(-0.5);
+            frontRightDrive.setPower(0.5);
+            backRightDrive.setPower(0.5);
         } else if(isDriving && runtime.seconds() >= 21 && runtime.seconds() < 23.5 ) {
             // Drive to intake 2
             frontLeftDrive.setPower(-0.5);
@@ -207,7 +213,7 @@ public class RedSimpleAuto extends OpMode {
             backRightDrive.setPower(0);
 
             shooter.setVelocity(getTickSpeed(SHOOTER_RPM));
-            if (isShooterAtSpeed()) {
+            if (runtime.seconds() > 28) {
                 blocker.setPosition(BLOCKER_UP_POS);
                 intake.setPower(0.5);
             }
