@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
 //TOY WITH THIS AUTO
+// NOTE: This autonomous works well at 13.04 volts battery voltage
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -27,11 +28,15 @@ public class RedSimpleAuto extends OpMode {
     private Servo blocker;
     
     // Constants
-    private static final double SHOOTER_RPM = 3000;
+    private static final double SHOOTER_RPM = 2900;
     private static final double TICKS_PER_REV = 28.0;  // GoBilda 5202/5203 encoder
     private static final double RPM_TOLERANCE = 300;
     private static final double BLOCKER_UP_POS = 0.175;    // Open position (inverted)
     private static final double BLOCKER_DOWN_POS = 0.3;  // Closed position (inverted)
+    
+    // Voltage compensation - tuned for 13.1V battery
+    private static final double TARGET_VOLTAGE = 13.1;
+    private double voltageScale = 1.0;
     
     private ElapsedTime runtime = new ElapsedTime();
     private boolean isDriving = false;
@@ -65,9 +70,14 @@ public class RedSimpleAuto extends OpMode {
         
         // Set blocker to closed position
         blocker.setPosition(BLOCKER_DOWN_POS);
+        
+        // Calculate voltage compensation scale
+        double currentVoltage = hardwareMap.voltageSensor.iterator().next().getVoltage();
+        voltageScale = TARGET_VOLTAGE / currentVoltage;
 
         telemetry.addLine("Simple Drive Test Initialized");
-        telemetry.addLine("Will drive backwards for 2 seconds");
+        telemetry.addData("Battery Voltage", "%.2f V", currentVoltage);
+        telemetry.addData("Voltage Scale", "%.3f", voltageScale);
         telemetry.update();
     }
 
@@ -84,17 +94,17 @@ public class RedSimpleAuto extends OpMode {
             double drive = -0.3875;    // Backward
             double turn = 0.25;     // Rotate counterclockwise
             
-            frontLeftDrive.setPower(drive);  // -0.75
-            frontRightDrive.setPower(drive); // -0.25
-            backLeftDrive.setPower(drive);   // -0.75
-            backRightDrive.setPower(drive);  // -0.25
+            frontLeftDrive.setPower(scalePower(drive));
+            frontRightDrive.setPower(scalePower(drive));
+            backLeftDrive.setPower(scalePower(drive));
+            backRightDrive.setPower(scalePower(drive));
 
             //TURN to shoot, from start
         } else if(isDriving && runtime.seconds() >= 1.75 && runtime.seconds() < 2.375 ) {
-            frontLeftDrive.setPower(0.3);
-            frontRightDrive.setPower(-0.3);
-            backLeftDrive.setPower(0.3);
-            backRightDrive.setPower(-0.3);
+            frontLeftDrive.setPower(scalePower(0.285));
+            frontRightDrive.setPower(scalePower(-0.285));
+            backLeftDrive.setPower(scalePower(0.285));
+            backRightDrive.setPower(scalePower(-0.285));
             //SHOOT SEQUENCE
         } else if(isDriving && runtime.seconds() >= 2.375 && runtime.seconds() < 8.25 ) { // Stop motors after 2 seconds
             frontLeftDrive.setPower(0);
@@ -105,7 +115,7 @@ public class RedSimpleAuto extends OpMode {
             shooter.setVelocity(getTickSpeed(SHOOTER_RPM));
             if (runtime.seconds() > 4.375) {
                 blocker.setPosition(BLOCKER_UP_POS);
-                intake.setPower(0.5);
+                intake.setPower(0.35);
             }
             if(runtime.seconds() >= 7.5 ){
                 shooter.setPower(0);
@@ -116,32 +126,32 @@ public class RedSimpleAuto extends OpMode {
         } else if(isDriving && runtime.seconds() >= 8.25  && runtime.seconds() < 9.25 ) {
             shooter.setPower(0);
 
-            frontLeftDrive.setPower(-0.5);
-            backLeftDrive.setPower(-0.5);
-            frontRightDrive.setPower(0.5);
-            backRightDrive.setPower(0.5);
+            frontLeftDrive.setPower(scalePower(-0.47));
+            backLeftDrive.setPower(scalePower(-0.47));
+            frontRightDrive.setPower(scalePower(0.47));
+            backRightDrive.setPower(scalePower(0.47));
 
-            intake.setPower(0.875);
+            intake.setPower(1);
             //DRIVE to INTAKE1
         } else if(isDriving && runtime.seconds() >= 9.25  && runtime.seconds() < 10.75 ) {
-            frontLeftDrive.setPower(-0.45);
-            frontRightDrive.setPower(-0.45);
-            backLeftDrive.setPower(-0.45);
-            backRightDrive.setPower(-0.45);
+            frontLeftDrive.setPower(scalePower(-0.4));
+            frontRightDrive.setPower(scalePower(-0.4));
+            backLeftDrive.setPower(scalePower(-0.4));
+            backRightDrive.setPower(scalePower(-0.4));
 
             //BACK to shoot
         } else if(isDriving && runtime.seconds() >= 10.75  && runtime.seconds() < 12.25 ) {
-            frontLeftDrive.setPower(0.35);
-            frontRightDrive.setPower(0.35);
-            backLeftDrive.setPower(0.35);
-            backRightDrive.setPower(0.35);
+            frontLeftDrive.setPower(scalePower(0.4));
+            frontRightDrive.setPower(scalePower(0.4));
+            backLeftDrive.setPower(scalePower(0.4));
+            backRightDrive.setPower(scalePower(0.4));
             intake.setPower(0);
             //TURN to shoot, from intake1
         } else if(isDriving && runtime.seconds() >= 12.25  && runtime.seconds() < 13.25 ) {
-            frontLeftDrive.setPower(0.45);
-            backLeftDrive.setPower(0.45);
-            frontRightDrive.setPower(-0.45);
-            backRightDrive.setPower(-0.45);
+            frontLeftDrive.setPower(scalePower(0.45));
+            backLeftDrive.setPower(scalePower(0.45));
+            frontRightDrive.setPower(scalePower(-0.45));
+            backRightDrive.setPower(scalePower(-0.45));
             //Shoot sequence
         } else if(isDriving && runtime.seconds() >= 13.25  && runtime.seconds() < 19.375 ) {
             frontLeftDrive.setPower(0);
@@ -152,7 +162,7 @@ public class RedSimpleAuto extends OpMode {
             shooter.setVelocity(getTickSpeed(SHOOTER_RPM));
             if (runtime.seconds() > 15) {
                 blocker.setPosition(BLOCKER_UP_POS);
-                intake.setPower(0.5);
+                intake.setPower(0.35);
             }
             if(runtime.seconds() >= 18.5 ){
                 shooter.setPower(0);
@@ -163,48 +173,48 @@ public class RedSimpleAuto extends OpMode {
             // Turn to bridge Intake 2
             shooter.setPower(0);
 
-            frontLeftDrive.setPower(-0.5);
-            backLeftDrive.setPower(-0.5);
-            frontRightDrive.setPower(0.5);
-            backRightDrive.setPower(0.5);
+            frontLeftDrive.setPower(scalePower(-0.35));
+            backLeftDrive.setPower(scalePower(-0.35));
+            frontRightDrive.setPower(scalePower(0.35));
+            backRightDrive.setPower(scalePower(0.35));
         } else if(isDriving && runtime.seconds() >= 19.75  && runtime.seconds() < 20.25 ) {
             // Drive to Intake 2 bridge point
-            frontLeftDrive.setPower(-0.5);
-            frontRightDrive.setPower(-0.5);
-            backLeftDrive.setPower(-0.5);
-            backRightDrive.setPower(-0.5);
+            frontLeftDrive.setPower(scalePower(-0.5));
+            frontRightDrive.setPower(scalePower(-0.5));
+            backLeftDrive.setPower(scalePower(-0.5));
+            backRightDrive.setPower(scalePower(-0.5));
         } else if(isDriving && runtime.seconds() >= 20.25  && runtime.seconds() < 21 ) {
             // Turn to intake 2, from bridge
-            frontLeftDrive.setPower(-0.5);
-            backLeftDrive.setPower(-0.5);
-            frontRightDrive.setPower(0.5);
-            backRightDrive.setPower(0.5);
+            frontLeftDrive.setPower(scalePower(-0.5));
+            backLeftDrive.setPower(scalePower(-0.5));
+            frontRightDrive.setPower(scalePower(0.5));
+            backRightDrive.setPower(scalePower(0.5));
         } else if(isDriving && runtime.seconds() >= 21 && runtime.seconds() < 23.5 ) {
             // Drive to intake 2
-            frontLeftDrive.setPower(-0.5);
-            frontRightDrive.setPower(-0.5);
-            backLeftDrive.setPower(-0.5);
-            backRightDrive.setPower(-0.5);
+            frontLeftDrive.setPower(scalePower(-0.5));
+            frontRightDrive.setPower(scalePower(-0.5));
+            backLeftDrive.setPower(scalePower(-0.5));
+            backRightDrive.setPower(scalePower(-0.5));
             intake.setPower(0.875);
             //Turn back to shoot, from intake2 compromised
         } else if(isDriving && runtime.seconds() >= 23.5  && runtime.seconds() < 24 ) {
-            frontLeftDrive.setPower(0.5);
-            backLeftDrive.setPower(0.5);
-            frontRightDrive.setPower(-0.5);
-            backRightDrive.setPower(-0.5);
+            frontLeftDrive.setPower(scalePower(0.5));
+            backLeftDrive.setPower(scalePower(0.5));
+            frontRightDrive.setPower(scalePower(-0.5));
+            backRightDrive.setPower(scalePower(-0.5));
             intake.setPower(0);
             //Drive back to shoot
         } else if(isDriving && runtime.seconds() >= 24 && runtime.seconds() < 25.5 ) {
-            frontLeftDrive.setPower(0.5);
-            frontRightDrive.setPower(0.5);
-            backLeftDrive.setPower(0.5);
-            backRightDrive.setPower(0.5);
+            frontLeftDrive.setPower(scalePower(0.5));
+            frontRightDrive.setPower(scalePower(0.5));
+            backLeftDrive.setPower(scalePower(0.5));
+            backRightDrive.setPower(scalePower(0.5));
             //Turn to shoot
         } else if(isDriving && runtime.seconds() >= 25.5  && runtime.seconds() < 26.25 ) {
-            frontLeftDrive.setPower(0.45);
-            backLeftDrive.setPower(0.45);
-            frontRightDrive.setPower(-0.45);
-            backRightDrive.setPower(-0.45);
+            frontLeftDrive.setPower(scalePower(0.45));
+            backLeftDrive.setPower(scalePower(0.45));
+            frontRightDrive.setPower(scalePower(-0.45));
+            backRightDrive.setPower(scalePower(-0.45));
             //Shoot sequence
         } else if(isDriving && runtime.seconds() >= 26.25  && runtime.seconds() < 32.625 ) {
             frontLeftDrive.setPower(0);
@@ -262,5 +272,12 @@ public class RedSimpleAuto extends OpMode {
     private boolean isShooterAtSpeed() {
         double currentRPM = shooter.getVelocity() * 60 / TICKS_PER_REV;
         return Math.abs(currentRPM - SHOOTER_RPM) < RPM_TOLERANCE;
+    }
+    
+    /**
+     * Scale motor power for voltage compensation
+     */
+    private double scalePower(double power) {
+        return power * voltageScale;
     }
 }
