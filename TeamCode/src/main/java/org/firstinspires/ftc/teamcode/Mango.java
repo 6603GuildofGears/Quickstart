@@ -32,7 +32,7 @@ import java.io.File;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-@DISABLED
+@Disabled
 @Config
 @TeleOp(name = "Mango", group = "Robot")
 public class Mango extends OpMode {
