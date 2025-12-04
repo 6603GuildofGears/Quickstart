@@ -29,11 +29,17 @@ public class BlueSimpleAutoAprilTag extends OpMode {
     private Servo blocker;
     
     // Constants
-    private static final double SHOOTER_RPM = 2900;
+    private static final double SHOOTER_RPM = 3300;
     private static final double TICKS_PER_REV = 28.0;  // GoBilda 5202/5203 encoder
     private static final double RPM_TOLERANCE = 300;
     private static final double BLOCKER_UP_POS = 0.175;    // Open position (inverted)
     private static final double BLOCKER_DOWN_POS = 0.32;  // Closed position (inverted)
+    
+    // PID coefficients for shooter stability (reduced P for less overshoot)
+    private static final double SHOOTER_P = 1.5;   // Proportional (lower = less aggressive)
+    private static final double SHOOTER_I = 0.15;  // Integral (helps eliminate steady-state error)
+    private static final double SHOOTER_D = 0.1;   // Derivative (dampens oscillation)
+    private static final double SHOOTER_F = 12.5;  // Feedforward (velocity control)
     
     // Voltage compensation - tuned for 13.8V battery
     private static final double TARGET_VOLTAGE = 13.8;
@@ -62,9 +68,12 @@ public class BlueSimpleAutoAprilTag extends OpMode {
         intake = hardwareMap.get(DcMotorEx.class, "shooterMotor");  // Actual intake
         blocker = hardwareMap.get(Servo.class, "blocker");
         
-        // Shooter setup
+        // Shooter setup with custom PID for stability
         shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter.setDirection(DcMotorSimple.Direction.REVERSE);
+        
+        // Configure PID coefficients to reduce overshoot and oscillation
+        shooter.setVelocityPIDFCoefficients(SHOOTER_P, SHOOTER_I, SHOOTER_D, SHOOTER_F);
         
         // Intake setup
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -89,26 +98,20 @@ public class BlueSimpleAutoAprilTag extends OpMode {
     public void loop() {
         if (isDriving && runtime.seconds() < 1.586) {
             // Drive backwards
-            frontLeftDrive.setPower(scalePower(-0.3875));
-            frontRightDrive.setPower(scalePower(-0.3875));
-            backLeftDrive.setPower(scalePower(-0.3875));
-            backRightDrive.setPower(scalePower(-0.3875));
-
-            //TURN to shoot, from start (INVERTED)
-        } else if(isDriving && runtime.seconds() >= 1.586 && runtime.seconds() < 2.152 ) {
-            frontLeftDrive.setPower(scalePower(-0.285));
-            frontRightDrive.setPower(scalePower(0.285));
-            backLeftDrive.setPower(scalePower(-0.285));
-            backRightDrive.setPower(scalePower(0.285));
+            frontLeftDrive.setPower(scalePower(-0.39));
+            frontRightDrive.setPower(scalePower(-0.4));
+            backLeftDrive.setPower(scalePower(-0.39));
+            backRightDrive.setPower(scalePower(-0.4));
+        
             //SHOOT SEQUENCE
-        } else if(isDriving && runtime.seconds() >= 2.152 && runtime.seconds() < 7.477 ) {
+        } else if(isDriving && runtime.seconds() >= 1.586 && runtime.seconds() < 7.477 ) {
             frontLeftDrive.setPower(0);
             frontRightDrive.setPower(0);
             backLeftDrive.setPower(0);
             backRightDrive.setPower(0);
 
             shooter.setVelocity(getTickSpeed(SHOOTER_RPM) * getCurrentVoltageScale());
-            if (runtime.seconds() > 4.2) {
+            if (runtime.seconds() > 2.875) {
                 blocker.setPosition(BLOCKER_UP_POS);
                 intake.setPower(scalePower(0.35));
             }
@@ -121,10 +124,10 @@ public class BlueSimpleAutoAprilTag extends OpMode {
         } else if(isDriving && runtime.seconds() >= 7.477  && runtime.seconds() < 8.383 ) {
             shooter.setPower(0);
 
-            frontLeftDrive.setPower(scalePower(0.448));
-            backLeftDrive.setPower(scalePower(0.448));
-            frontRightDrive.setPower(scalePower(-0.448));
-            backRightDrive.setPower(scalePower(-0.448));
+            frontLeftDrive.setPower(scalePower(0.46));
+            backLeftDrive.setPower(scalePower(0.46));
+            frontRightDrive.setPower(scalePower(-0.46));
+            backRightDrive.setPower(scalePower(-0.46));
 
             intake.setPower(scalePower(1));
             //DRIVE to INTAKE1
@@ -143,10 +146,10 @@ public class BlueSimpleAutoAprilTag extends OpMode {
             intake.setPower(0);
             //TURN to shoot, from intake1 (INVERTED)
         } else if(isDriving && runtime.seconds() >= 11.101  && runtime.seconds() < 12.007 ) {
-            frontLeftDrive.setPower(scalePower(-0.4375));
-            backLeftDrive.setPower(scalePower(-0.46));
-            frontRightDrive.setPower(scalePower(0.46));
-            backRightDrive.setPower(scalePower(0.4375));
+            frontLeftDrive.setPower(scalePower(-0.43));
+            backLeftDrive.setPower(scalePower(-0.425));
+            frontRightDrive.setPower(scalePower(0.425));
+            backRightDrive.setPower(scalePower(0.43));
             //Shoot sequence
         } else if(isDriving && runtime.seconds() >= 12.007  && runtime.seconds() < 17.551 ) {
             frontLeftDrive.setPower(0);
@@ -168,22 +171,22 @@ public class BlueSimpleAutoAprilTag extends OpMode {
             // Turn to bridge Intake 2 (INVERTED)
             shooter.setPower(0);
 
-            frontLeftDrive.setPower(scalePower(0.355));
-            backLeftDrive.setPower(scalePower(0.355));
-            frontRightDrive.setPower(scalePower(-0.355));
-            backRightDrive.setPower(scalePower(-0.355));
+            frontLeftDrive.setPower(scalePower(0.3875));
+            backLeftDrive.setPower(scalePower(0.3875));
+            frontRightDrive.setPower(scalePower(-0.3875));
+            backRightDrive.setPower(scalePower(-0.3875));
         } else if(isDriving && runtime.seconds() >= 17.891  && runtime.seconds() < 18.344 ) {
             // Drive to Intake 2 bridge point
-            frontLeftDrive.setPower(scalePower(-0.5));
-            frontRightDrive.setPower(scalePower(-0.5));
-            backLeftDrive.setPower(scalePower(-0.5));
-            backRightDrive.setPower(scalePower(-0.5));
+            frontLeftDrive.setPower(scalePower(-0.45));
+            frontRightDrive.setPower(scalePower(-0.45));
+            backLeftDrive.setPower(scalePower(-0.45));
+            backRightDrive.setPower(scalePower(-0.45));
         } else if(isDriving && runtime.seconds() >= 18.344  && runtime.seconds() < 19.023 ) {
             // Turn to intake 2, from bridge (INVERTED)
-            frontLeftDrive.setPower(scalePower(0.455));
-            backLeftDrive.setPower(scalePower(0.455));
-            frontRightDrive.setPower(scalePower(-0.455));
-            backRightDrive.setPower(scalePower(-0.455));
+            frontLeftDrive.setPower(scalePower(0.41));
+            backLeftDrive.setPower(scalePower(0.41));
+            frontRightDrive.setPower(scalePower(-0.41));
+            backRightDrive.setPower(scalePower(-0.41));
         } else if(isDriving && runtime.seconds() >= 19.023 && runtime.seconds() < 21.288 ) {
             // Drive to intake 2
             frontLeftDrive.setPower(scalePower(-0.3));

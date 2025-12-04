@@ -1,0 +1,367 @@
+package org.firstinspires.ftc.teamcode.pedroPathing;
+
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.pedropathing.until.Timer;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+
+@Autonomous(name = "Red Close Auto", group = "Competition")
+public class Redauto extends OpMode {
+    private Follower follower;
+    private Timer pathTimer, opmodeTimer;
+    
+    // Shooter hardware
+    private DcMotorEx shooter;  // Note: in hardware config this is labeled "intakeMotor"
+    private DcMotorEx intake;   // Note: in hardware config this is labeled "shooterMotor"
+    private Servo blocker;
+    private ElapsedTime shooterTimer = new ElapsedTime();
+    private boolean shooterStarted = false;
+    
+    // Shooter constants
+    private final double TICKS_PER_REV = 28;
+    private static final double SHOOTER_P = 1.5;
+    private static final double SHOOTER_I = 0.15;
+    private static final double SHOOTER_D = 0.1;
+    private static final double SHOOTER_F = 12.5;
+
+    public enum PathState {
+        // start pos to end pos
+        //drive = movment 
+        //shoot = shooting preloaded elments
+         
+      DRIVE_STARTPOSE_TO_SHOOTPOSE,
+      SHOOT_PRELOAD,
+      DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE,
+     DRIVE_INTAKEPOSE_TO_SAMPLE1,
+        DRIVE_SAMPLE1_TO_SHOOTPOSE,
+        SHOOT_SAMPLE1,
+        DRIVE_SHOOTPOSE_TO_INTAKEPOSE2,
+        DRIVE_INTAKEPOSE2_TO_SAMPLE2,
+        DRIVE_SAMPLE2_TO_SHOOTPOSE,
+        SHOOT_SAMPLE2,
+        DRIVE_SHOOTPOSE_TO_ENDPOSE,
+
+    }
+
+
+
+      PathState pathState;
+
+
+    private final Pose startPose = new Pose(122, 125, Math.toRadians(37));  // Start facing away from field
+    
+    private final Pose shootPose = new Pose(93.25, 98, Math.toRadians(40));    // Shooting position
+
+    private final Pose intakePose = new Pose(102, 84, Math.toRadians(180));    // Intake position
+
+    private final Pose sample1 = new Pose(114, 84, Math.toRadians(180));
+
+    private final Pose intakePose2 = new Pose(102, 60, Math.toRadians(180));
+
+    private final Pose sample2 = new Pose(114, 60, Math.toRadians(180));
+
+    private final Pose endPose = new Pose(91, 115, Math.toRadians(40));  // End position
+
+    
+    
+
+    double rpm = 3300;
+
+    private PathChain driveStartPoseShootPose;
+    private PathChain driveShootPreloadToIntakePose;
+    private PathChain driveIntakePoseToSample1;
+    private PathChain driveSample1ToShootPose;
+    private PathChain driveShootPoseToIntakePose2;
+    private PathChain driveIntakePose2ToSample2;
+    private PathChain driveSample2ToShootPose;
+    private PathChain shootSample2;
+    private PathChain driveShootPoseToEndPose;
+
+
+    public void buildPaths() {
+     
+     driveStartPoseShootPose = follower.pathBuilder()
+            .addPath(new BezierLine(startPose, shootPose))
+            .setLinearHeadingInterpolation(startPose.getHeading(), shootPose.getHeading())
+            .build();
+
+     driveShootPreloadToIntakePose = follower.pathBuilder()
+            .addPath(new BezierLine(shootPose, intakePose))
+            .setLinearHeadingInterpolation(shootPose.getHeading(), intakePose.getHeading())
+            .build();
+        driveIntakePoseToSample1 = follower.pathBuilder()
+            .addPath(new BezierLine(intakePose, sample1))
+            .setLinearHeadingInterpolation(intakePose.getHeading(), sample1.getHeading())
+            .build();
+        driveSample1ToShootPose = follower.pathBuilder()
+            .addPath(new BezierLine(sample1, shootPose))
+            .setLinearHeadingInterpolation(sample1.getHeading(), shootPose.getHeading())
+            .build();
+        driveShootPoseToIntakePose2 = follower.pathBuilder()
+            .addPath(new BezierLine(shootPose, intakePose2))
+            .setLinearHeadingInterpolation(shootPose.getHeading(), intakePose2.getHeading())
+            .build();   
+        driveIntakePose2ToSample2 = follower.pathBuilder()
+            .addPath(new BezierLine(intakePose2, sample2))
+            .setLinearHeadingInterpolation(intakePose2.getHeading(), sample2.getHeading())
+            .build();
+
+        driveSample2ToShootPose = follower.pathBuilder()
+            .addPath(new BezierLine(sample2, shootPose))     
+            .setLinearHeadingInterpolation(sample2.getHeading(), shootPose.getHeading())
+            .build();   
+        shootSample2 = follower.pathBuilder()
+            .addPath(new BezierLine(shootPose, shootPose))  
+            .setLinearHeadingInterpolation(shootPose.getHeading(), shootPose.getHeading())
+            .build();   
+        driveShootPoseToEndPose = follower.pathBuilder()
+            .addPath(new BezierLine(shootPose, endPose))    
+            .setLinearHeadingInterpolation(shootPose.getHeading(), endPose.getHeading())
+            .build();
+
+
+
+    }
+
+
+    public void statePathUpdate() {
+        switch (pathState) {
+            case DRIVE_STARTPOSE_TO_SHOOTPOSE:
+                if (!shooterStarted) {
+                    follower.followPath(driveStartPoseShootPose, true);
+                }
+                
+                // Start shooter when path is halfway done
+                if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
+                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooterTimer.reset();
+                    shooterStarted = true;
+                }
+                
+                if (!follower.isBusy()) {
+                    pathState = PathState.SHOOT_PRELOAD;
+                }
+                break;
+            case SHOOT_PRELOAD:
+                if(!follower.isBusy()){
+                    // Wait 2 seconds then open blocker and run intake
+                    if (shooterTimer.seconds() >= 2.0) {
+                        blocker.setPosition(0.175);  // Open blocker
+                        intake.setPower(-0.8);  // Run intake motor
+                    }
+                 
+                    telemetry.addLine("Path 1 Done");
+                }
+                break;
+
+            case DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE:
+                follower.followPath(driveShootPreloadToIntakePose, true);
+                
+                // Turn off shooter and close blocker when moving to intake
+                shooter.setVelocity(0);
+                intake.setPower(0);
+                blocker.setPosition(0.32);  // Close blocker
+                
+                pathState = PathState.DRIVE_INTAKEPOSE_TO_SAMPLE1;
+                break;
+
+
+            case DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE:
+                if(!follower.isBusy()){
+                    //Add intake logic
+                    
+                    telemetry.addLine("Path 2 Done");
+                }
+                break;
+
+
+            case DRIVE_INTAKEPOSE_TO_SAMPLE1:
+                follower.followPath(driveIntakePoseToSample1, true);
+                
+                // Turn on intake during path
+                intake.setPower(0.4);
+                
+                pathState = PathState.DRIVE_SAMPLE1_TO_SHOOTPOSE;
+                break;
+            case DRIVE_SAMPLE1_TO_SHOOTPOSE:
+                if(!follower.isBusy()){
+                    // Turn off intake when path ends
+                                    intake.setPower(0);
+
+                    telemetry.addLine("Path 3 Done");
+                    pathState = PathState.DRIVE_SAMPLE1_TO_SHOOTPOSE;
+                }
+                break;
+
+            case DRIVE_SAMPLE1_TO_SHOOTPOSE:
+                if (!shooterStarted) {
+                    follower.followPath(driveSample1ToShootPose, true);
+                }
+                
+                // Start shooter when path is halfway done
+                if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
+                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooterTimer.reset();
+                    shooterStarted = true;
+                }
+                
+                if (!follower.isBusy()) {
+                    pathState = PathState.SHOOT_SAMPLE1;
+                }
+                break;
+                
+            case SHOOT_SAMPLE1:
+                // Wait 2 seconds then open blocker and run intake
+                if (shooterTimer.seconds() >= 2.0) {
+                    blocker.setPosition(0.175);  // Open blocker
+                    intake.setPower(-0.8);  // Run intake motor
+                }
+                
+                telemetry.addLine("Sample 1 Shot");
+                break;
+
+            case DRIVE_SHOOTPOSE_TO_INTAKEPOSE2:
+                follower.followPath(driveShootPoseToIntakePose2, true);
+                // Turn off shooter and close blocker when moving to intake
+                shooter.setVelocity(0);  
+                intake.setPower(0);
+                blocker.setPosition(0.32);  // Close blocker
+                pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
+                break;  
+            case DRIVE_SHOOTPOSE_TO_INTAKEPOSE2:
+                if(!follower.isBusy()){    
+                    //Add intake logic
+                    
+                    telemetry.addLine("Path 6 Done");
+                }
+
+                break;
+
+
+            case DRIVE_INTAKEPOSE2_TO_SAMPLE2:
+                follower.followPath(driveIntakePose2ToSample2, true);  
+                // Turn on intake during path
+                intake.setPower(0.4);   
+                pathState = PathState.DRIVE_INTAKEPOSE2_TO_SAMPLE2;
+                break;
+            case DRIVE_INTAKEPOSE2_TO_SAMPLE2:
+                if(!follower.isBusy()){ 
+                    // Turn off intake when path ends
+                    intake.setPower(0);
+
+                    telemetry.addLine("Path 7 Done");
+                }
+                break;
+
+
+            case DRIVE_SAMPLE2_TO_SHOOTPOSE:
+                follower.followPath(driveSample2ToShootPose, true);
+                // Start shooter when path is halfway done  
+                if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
+                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooterTimer.reset();
+                    shooterStarted = true;
+                }
+                
+                if (!follower.isBusy()) {
+                    pathState = PathState.SHOOT_SAMPLE2;
+                }
+                break;
+
+            case SHOOT_SAMPLE2:
+               // Wait 2 seconds then open blocker and run intake
+                if (shooterTimer.seconds() >= 2.0) {
+                    blocker.setPosition(0.175);  // Open blocker
+                    intake.setPower(-0.8);  // Run intake motor
+                }
+                
+                telemetry.addLine("Sample 2 Shot");
+                
+                // Turn off shooter and intake, close blocker
+                shooter.setVelocity(0);
+                intake.setPower(0);
+                blocker.setPosition(0.32);  // Close blocker
+                
+                pathState = PathState.DRIVE_SHOOTPOSE_TO_ENDPOSE;
+                break;
+        
+                case DRIVE_SHOOTPOSE_TO_ENDPOSE:
+                if(!follower.isBusy()){
+                    telemetry.addLine("Auto Complete");
+                    requestOpModeStop();
+                }
+
+
+
+            default:
+                telemetry.addLine("No valid path state");
+                break;   
+         
+        }
+    
+    }
+
+    public void statePathUpdate( PathState newState) {
+        pathState = newState;
+        pathTimer.resetTimer();
+    }
+
+
+    @Override
+    public void init() {
+    
+    pathState = PathState.DRIVE_STARTPOSE_TO_SHOOTPOSE;
+    pathTimer = new Timer();
+    opmodeTimer = new Timer();
+    opmodeTimer.resetTimer();
+    follower = Constants.createFollower(hardwareMap);
+    
+    // Initialize shooter hardware
+    shooter = hardwareMap.get(DcMotorEx.class, "intakeMotor");  // Actual shooter motor
+    intake = hardwareMap.get(DcMotorEx.class, "shooterMotor");   // Actual intake motor
+    blocker = hardwareMap.get(Servo.class, "blocker");
+    
+    shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    shooter.setDirection(DcMotorSimple.Direction.REVERSE);
+    shooter.setVelocityPIDFCoefficients(SHOOTER_P, SHOOTER_I, SHOOTER_D, SHOOTER_F);
+    intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+    
+    blocker.setPosition(0.32);  // Closed position
+
+    buildPaths();
+    follower.setPose(startPose);
+
+    }
+
+    public void start () {
+    opmodeTimer.resetTimer();
+    setPathState(PathState);
+
+    }
+
+
+    @Override
+    public void loop() {
+
+        follower.update();
+        statePathUpdate();
+
+        telemetry.addData("Path state", pathState.toString());
+        telemetry.addData("X", follower.getPose().getX());       
+        telemetry.addData("Y", follower.getPose().getY());
+        telemetry.addData("Heading", Math.toDegrees(follower.getPose().getHeading()));
+        telemetry.addData("Path time (s): ", pathTimer.getElapsedTimeSeconds());
+        telemetry.update();
+    
+    }
+    
+    public double getTickSpeed(double speed) {
+        return speed * TICKS_PER_REV / 60;
+    }
+}
