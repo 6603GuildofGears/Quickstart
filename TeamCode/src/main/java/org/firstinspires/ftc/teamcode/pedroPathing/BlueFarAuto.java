@@ -13,8 +13,9 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name = "PEDRO - Blue Close Auto", group = "Blue")
-public class BlueCloseAuto extends OpMode {
+
+@Autonomous(name = "PEDRO - Blue Far Auto", group = "Blue")
+public class BlueFarAuto extends OpMode {
     private Follower follower;
     private Timer pathTimer, opmodeTimer;
     
@@ -24,7 +25,6 @@ public class BlueCloseAuto extends OpMode {
     private Servo blocker;
     private ElapsedTime shooterTimer = new ElapsedTime();
     private boolean shooterStarted = false;
-    private boolean pathStarted = false;
     
     // Shooter constants
     private final double TICKS_PER_REV = 28;
@@ -57,24 +57,24 @@ public class BlueCloseAuto extends OpMode {
       PathState pathState;
 
 
-    private final Pose startPose = new Pose(22, 125, Math.toRadians(140));  // Start facing away from field
+    private final Pose startPose = new Pose(48, 9, Math.toRadians(90));  // Start facing away from field
     
-    private final Pose shootPose = new Pose(50.75, 98, Math.toRadians(137));    // Shooting position
+    private final Pose shootPose = new Pose(60, 14, Math.toRadians(117));    // Shooting position
 
-    private final Pose intakePose = new Pose(42, 84, Math.toRadians(0));    // Intake position
+    private final Pose intakePose = new Pose(8.5, 13, Math.toRadians(0));    // Intake position
 
-    private final Pose sample1 = new Pose(30, 84, Math.toRadians(0));
+    private final Pose sample1 = new Pose(40, 35.5, Math.toRadians(0));
 
-    private final Pose intakePose2 = new Pose(42, 60, Math.toRadians(0));
+    private final Pose intakePose2 = new Pose(30, 35.5, Math.toRadians(0));
 
-    private final Pose sample2 = new Pose(30, 60, Math.toRadians(0));
+    private final Pose sample2 = new Pose(60, 14, Math.toRadians(117));
 
-    private final Pose endPose = new Pose(50, 115 , Math.toRadians(137));  // End position (same as shoot pose for now)
+    private final Pose endPose = new Pose(90, 27, Math.toRadians(63));  // End position
 
     
     
 
-    double rpm = 3300;
+    double rpm = 3700;  // Use 3700 RPM like BlueFarAuto
 
     private PathChain driveStartPoseShootPose;
     private PathChain driveShootPreloadToIntakePose;
@@ -113,11 +113,11 @@ public class BlueCloseAuto extends OpMode {
             .setLinearHeadingInterpolation(intakePose2.getHeading(), sample2.getHeading())
             .build();
         driveSample2ToShootPose = follower.pathBuilder()
-            .addPath(new BezierLine(sample2, shootPose))
+            .addPath(new BezierLine(sample2, shootPose))     
             .setLinearHeadingInterpolation(sample2.getHeading(), shootPose.getHeading())
             .build();
         driveShootPoseToEndPose = follower.pathBuilder()
-            .addPath(new BezierLine(shootPose, endPose))
+            .addPath(new BezierLine(shootPose, endPose))    
             .setLinearHeadingInterpolation(shootPose.getHeading(), endPose.getHeading())
             .build();
     }
@@ -125,9 +125,8 @@ public class BlueCloseAuto extends OpMode {
     public void statePathUpdate() {
         switch (pathState) {
             case DRIVE_STARTPOSE_TO_SHOOTPOSE:
-                if (!pathStarted) {
+                if (!shooterStarted) {
                     follower.followPath(driveStartPoseShootPose, true);
-                    pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
@@ -139,7 +138,6 @@ public class BlueCloseAuto extends OpMode {
                 
                 if (!follower.isBusy()) {
                     pathState = PathState.SHOOT_PRELOAD;
-                    pathStarted = false;
                 }
                 break;
             case SHOOT_PRELOAD:
@@ -149,48 +147,30 @@ public class BlueCloseAuto extends OpMode {
                         blocker.setPosition(0.175);  // Open blocker
                         intake.setPower(-0.8);  // Run intake motor
                     }
-                    
-                    // After 4 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 4.0) {
-                        pathState = PathState.DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE;
-                        shooterStarted = false;
-                    }
                  
                     telemetry.addLine("Path 1 Done");
                 }
                 break;
 
             case DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE:
-                if (!pathStarted) {
-                    follower.followPath(driveShootPreloadToIntakePose, true);
-                    
-                    // Turn off shooter and close blocker when moving to intake
-                    shooter.setVelocity(0);
-                    intake.setPower(0);
-                    blocker.setPosition(0.32);  // Close blocker
-                    pathStarted = true;
-                }
+                follower.followPath(driveShootPreloadToIntakePose, true);
                 
-                if (pathStarted && !follower.isBusy()) {
-                    pathState = PathState.DRIVE_INTAKEPOSE_TO_SAMPLE1;
-                    pathStarted = false;
-                }
+                // Turn off shooter and close blocker when moving to intake
+                shooter.setVelocity(0);
+                intake.setPower(0);
+                blocker.setPosition(0.32);  // Close blocker
+                
+                pathState = PathState.DRIVE_INTAKEPOSE_TO_SAMPLE1;
                 break;
 
 
             case DRIVE_INTAKEPOSE_TO_SAMPLE1:
-                if (!pathStarted) {
-                    follower.followPath(driveIntakePoseToSample1, true);
-                    
-                    // Turn on intake during path
-                    intake.setPower(0.4);
-                    pathStarted = true;
-                }
+                follower.followPath(driveIntakePoseToSample1, true);
                 
-                if (pathStarted && !follower.isBusy()) {
-                    pathState = PathState.DRIVE_SAMPLE1_TO_SHOOTPOSE;
-                    pathStarted = false;
-                }
+                // Turn on intake during path
+                intake.setPower(0.4);
+                
+                pathState = PathState.DRIVE_SAMPLE1_TO_SHOOTPOSE;
                 break;
             case DRIVE_SAMPLE1_TO_SHOOTPOSE:
                 if (!shooterStarted) {
@@ -210,51 +190,31 @@ public class BlueCloseAuto extends OpMode {
                 break;
                 
             case SHOOT_SAMPLE1:
-                if (!follower.isBusy()) {
-                    // Wait 2 seconds then open blocker and run intake
-                    if (shooterTimer.seconds() >= 2.0) {
-                        blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.8);  // Run intake motor
-                    }
-                    
-                    // After 4 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 4.0) {
-                        pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
-                        shooterStarted = false;
-                    }
-                    
-                    telemetry.addLine("Sample 1 Shot");
+                // Wait 2 seconds then open blocker and run intake
+                if (shooterTimer.seconds() >= 2.0) {
+                    blocker.setPosition(0.175);  // Open blocker
+                    intake.setPower(-0.8);  // Run intake motor
                 }
+                
+                telemetry.addLine("Sample 1 Shot");
+                pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
                 break;
 
             case DRIVE_SHOOTPOSE_TO_INTAKEPOSE2:
-                if (!pathStarted) {
-                    follower.followPath(driveShootPoseToIntakePose2, true);
-                    // Turn off shooter and close blocker when moving to intake
-                    shooter.setVelocity(0);  
-                    intake.setPower(0);
-                    blocker.setPosition(0.32);  // Close blocker
-                    pathStarted = true;
-                }
-                
-                if (pathStarted && !follower.isBusy()) {
-                    pathState = PathState.DRIVE_INTAKEPOSE2_TO_SAMPLE2;
-                    pathStarted = false;
-                }
+                follower.followPath(driveShootPoseToIntakePose2, true);
+                // Turn off shooter and close blocker when moving to intake
+                shooter.setVelocity(0);  
+                intake.setPower(0);
+                blocker.setPosition(0.32);  // Close blocker
+                pathState = PathState.DRIVE_INTAKEPOSE2_TO_SAMPLE2;
                 break;  
             case DRIVE_INTAKEPOSE2_TO_SAMPLE2:
-                if (!pathStarted) {
-                    follower.followPath(driveIntakePose2ToSample2, true);
-                    
-                    // Turn on intake during path
-                    intake.setPower(0.4);
-                    pathStarted = true;
-                }
+                follower.followPath(driveIntakePose2ToSample2, true);
                 
-                if (pathStarted && !follower.isBusy()) {
-                    pathState = PathState.DRIVE_SAMPLE2_TO_SHOOTPOSE;
-                    pathStarted = false;
-                }
+                // Turn on intake during path
+                intake.setPower(0.4);
+                
+                pathState = PathState.DRIVE_SAMPLE2_TO_SHOOTPOSE;
                 break;
             case DRIVE_SAMPLE2_TO_SHOOTPOSE:
                 if (!shooterStarted) {
@@ -274,40 +234,33 @@ public class BlueCloseAuto extends OpMode {
                 break;
 
             case SHOOT_SAMPLE2:
-                if (!follower.isBusy()) {
-                    // Wait 2 seconds then open blocker and run intake
-                    if (shooterTimer.seconds() >= 2.0) {
-                        blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.8);  // Run intake motor
-                    }
-                    
-                    telemetry.addLine("Sample 2 Shot");
-                    
-                    // After 4 seconds total, move to end position
-                    if (shooterTimer.seconds() >= 4.0) {
-                        // Turn off shooter and intake, close blocker
-                        shooter.setVelocity(0);
-                        intake.setPower(0);
-                        blocker.setPosition(0.32);  // Close blocker
-                        
-                        pathState = PathState.DRIVE_SHOOTPOSE_TO_ENDPOSE;
-                        shooterStarted = false;
-                    }
-                }
-                break;
-        
-                case DRIVE_SHOOTPOSE_TO_ENDPOSE:
-                if (!pathStarted) {
-                    follower.followPath(driveShootPoseToEndPose, true);
-                    pathStarted = true;
+               // Wait 2 seconds then open blocker and run intake
+                if (shooterTimer.seconds() >= 2.0) {
+                    blocker.setPosition(0.175);  // Open blocker
+                    intake.setPower(-0.8);  // Run intake motor
                 }
                 
-                if (pathStarted && !follower.isBusy()) {
+                telemetry.addLine("Sample 2 Shot");
+                
+                // Turn off shooter and intake, close blocker
+                shooter.setVelocity(0);
+                intake.setPower(0);
+                blocker.setPosition(0.32);  // Close blocker
+                
+                pathState = PathState.DRIVE_SHOOTPOSE_TO_ENDPOSE;
+                break;
+            case DRIVE_SHOOTPOSE_TO_ENDPOSE:
+                if(!follower.isBusy()){
+                    // Kill everything
+                    shooter.setVelocity(0);
+                    intake.setPower(0);
+                    blocker.setPosition(0.32);
+                    
                     telemetry.addLine("Auto Complete");
-                    pathStarted = false;
                     requestOpModeStop();
                 }
                 break;
+
 
 
             default:

@@ -1,18 +1,20 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
-
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.pedropathing.until.Timer;
+import com.pedropathing.util.Timer;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.*;
+import com.pedropathing.paths.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-
-@Autonomous(name = "Red Close Auto", group = "Competition")
-public class Redauto extends OpMode {
+@Autonomous(name = "PEDRO - Red Close Auto", group = "Red")
+public class RedCloseAuto extends OpMode {
     private Follower follower;
     private Timer pathTimer, opmodeTimer;
     
@@ -22,6 +24,7 @@ public class Redauto extends OpMode {
     private Servo blocker;
     private ElapsedTime shooterTimer = new ElapsedTime();
     private boolean shooterStarted = false;
+    private boolean pathStarted = false;
     
     // Shooter constants
     private final double TICKS_PER_REV = 28;
@@ -55,18 +58,23 @@ public class Redauto extends OpMode {
 
 
     private final Pose startPose = new Pose(122, 125, Math.toRadians(37));  // Start facing away from field
-    
-    private final Pose shootPose = new Pose(93.25, 98, Math.toRadians(40));    // Shooting position
+   
+    private final Pose shootPose = new Pose(87, 92, Math.toRadians(40));    // Shooting position
 
-    private final Pose intakePose = new Pose(102, 84, Math.toRadians(180));    // Intake position
+
+    private final Pose intakePose = new Pose(110, 84, Math.toRadians(180));    // Intake position
+
 
     private final Pose sample1 = new Pose(114, 84, Math.toRadians(180));
 
-    private final Pose intakePose2 = new Pose(102, 60, Math.toRadians(180));
+
+    private final Pose intakePose2 = new Pose(110, 60, Math.toRadians(180));
+
 
     private final Pose sample2 = new Pose(114, 60, Math.toRadians(180));
 
-    private final Pose endPose = new Pose(91, 115, Math.toRadians(40));  // End position
+
+    private final Pose endPose = new Pose(91, 115, Math.toRadians(40));  // End position (same as shoot pose for now)
 
     
     
@@ -80,9 +88,7 @@ public class Redauto extends OpMode {
     private PathChain driveShootPoseToIntakePose2;
     private PathChain driveIntakePose2ToSample2;
     private PathChain driveSample2ToShootPose;
-    private PathChain shootSample2;
     private PathChain driveShootPoseToEndPose;
-
 
     public void buildPaths() {
      
@@ -111,30 +117,22 @@ public class Redauto extends OpMode {
             .addPath(new BezierLine(intakePose2, sample2))
             .setLinearHeadingInterpolation(intakePose2.getHeading(), sample2.getHeading())
             .build();
-
         driveSample2ToShootPose = follower.pathBuilder()
-            .addPath(new BezierLine(sample2, shootPose))     
+            .addPath(new BezierLine(sample2, shootPose))
             .setLinearHeadingInterpolation(sample2.getHeading(), shootPose.getHeading())
-            .build();   
-        shootSample2 = follower.pathBuilder()
-            .addPath(new BezierLine(shootPose, shootPose))  
-            .setLinearHeadingInterpolation(shootPose.getHeading(), shootPose.getHeading())
-            .build();   
+            .build();
         driveShootPoseToEndPose = follower.pathBuilder()
-            .addPath(new BezierLine(shootPose, endPose))    
+            .addPath(new BezierLine(shootPose, endPose))
             .setLinearHeadingInterpolation(shootPose.getHeading(), endPose.getHeading())
             .build();
-
-
-
     }
-
 
     public void statePathUpdate() {
         switch (pathState) {
             case DRIVE_STARTPOSE_TO_SHOOTPOSE:
-                if (!shooterStarted) {
+                if (!pathStarted) {
                     follower.followPath(driveStartPoseShootPose, true);
+                    pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
@@ -146,6 +144,7 @@ public class Redauto extends OpMode {
                 
                 if (!follower.isBusy()) {
                     pathState = PathState.SHOOT_PRELOAD;
+                    pathStarted = false;
                 }
                 break;
             case SHOOT_PRELOAD:
@@ -155,50 +154,49 @@ public class Redauto extends OpMode {
                         blocker.setPosition(0.175);  // Open blocker
                         intake.setPower(-0.8);  // Run intake motor
                     }
+                    
+                    // After 4 seconds total, move to next state
+                    if (shooterTimer.seconds() >= 4.0) {
+                        pathState = PathState.DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE;
+                        shooterStarted = false;
+                    }
                  
                     telemetry.addLine("Path 1 Done");
                 }
                 break;
 
             case DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE:
-                follower.followPath(driveShootPreloadToIntakePose, true);
-                
-                // Turn off shooter and close blocker when moving to intake
-                shooter.setVelocity(0);
-                intake.setPower(0);
-                blocker.setPosition(0.32);  // Close blocker
-                
-                pathState = PathState.DRIVE_INTAKEPOSE_TO_SAMPLE1;
-                break;
-
-
-            case DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE:
-                if(!follower.isBusy()){
-                    //Add intake logic
+                if (!pathStarted) {
+                    follower.followPath(driveShootPreloadToIntakePose, true);
                     
-                    telemetry.addLine("Path 2 Done");
+                    // Turn off shooter and close blocker when moving to intake
+                    shooter.setVelocity(0);
+                    intake.setPower(0);
+                    blocker.setPosition(0.32);  // Close blocker
+                    pathStarted = true;
+                }
+                
+                if (pathStarted && !follower.isBusy()) {
+                    pathState = PathState.DRIVE_INTAKEPOSE_TO_SAMPLE1;
+                    pathStarted = false;
                 }
                 break;
 
 
             case DRIVE_INTAKEPOSE_TO_SAMPLE1:
-                follower.followPath(driveIntakePoseToSample1, true);
+                if (!pathStarted) {
+                    follower.followPath(driveIntakePoseToSample1, true);
+                    
+                    // Turn on intake during path
+                    intake.setPower(0.4);
+                    pathStarted = true;
+                }
                 
-                // Turn on intake during path
-                intake.setPower(0.4);
-                
-                pathState = PathState.DRIVE_SAMPLE1_TO_SHOOTPOSE;
-                break;
-            case DRIVE_SAMPLE1_TO_SHOOTPOSE:
-                if(!follower.isBusy()){
-                    // Turn off intake when path ends
-                                    intake.setPower(0);
-
-                    telemetry.addLine("Path 3 Done");
+                if (pathStarted && !follower.isBusy()) {
                     pathState = PathState.DRIVE_SAMPLE1_TO_SHOOTPOSE;
+                    pathStarted = false;
                 }
                 break;
-
             case DRIVE_SAMPLE1_TO_SHOOTPOSE:
                 if (!shooterStarted) {
                     follower.followPath(driveSample1ToShootPose, true);
@@ -217,52 +215,58 @@ public class Redauto extends OpMode {
                 break;
                 
             case SHOOT_SAMPLE1:
-                // Wait 2 seconds then open blocker and run intake
-                if (shooterTimer.seconds() >= 2.0) {
-                    blocker.setPosition(0.175);  // Open blocker
-                    intake.setPower(-0.8);  // Run intake motor
+                if (!follower.isBusy()) {
+                    // Wait 2 seconds then open blocker and run intake
+                    if (shooterTimer.seconds() >= 2.0) {
+                        blocker.setPosition(0.175);  // Open blocker
+                        intake.setPower(-0.8);  // Run intake motor
+                    }
+                    
+                    // After 4 seconds total, move to next state
+                    if (shooterTimer.seconds() >= 4.0) {
+                        pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
+                        shooterStarted = false;
+                    }
+                    
+                    telemetry.addLine("Sample 1 Shot");
+                }
+                break;
+
+            case DRIVE_SHOOTPOSE_TO_INTAKEPOSE2:
+                if (!pathStarted) {
+                    follower.followPath(driveShootPoseToIntakePose2, true);
+                    // Turn off shooter and close blocker when moving to intake
+                    shooter.setVelocity(0);  
+                    intake.setPower(0);
+                    blocker.setPosition(0.32);  // Close blocker
+                    pathStarted = true;
                 }
                 
-                telemetry.addLine("Sample 1 Shot");
-                break;
-
-            case DRIVE_SHOOTPOSE_TO_INTAKEPOSE2:
-                follower.followPath(driveShootPoseToIntakePose2, true);
-                // Turn off shooter and close blocker when moving to intake
-                shooter.setVelocity(0);  
-                intake.setPower(0);
-                blocker.setPosition(0.32);  // Close blocker
-                pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
+                if (pathStarted && !follower.isBusy()) {
+                    pathState = PathState.DRIVE_INTAKEPOSE2_TO_SAMPLE2;
+                    pathStarted = false;
+                }
                 break;  
-            case DRIVE_SHOOTPOSE_TO_INTAKEPOSE2:
-                if(!follower.isBusy()){    
-                    //Add intake logic
+            case DRIVE_INTAKEPOSE2_TO_SAMPLE2:
+                if (!pathStarted) {
+                    follower.followPath(driveIntakePose2ToSample2, true);
                     
-                    telemetry.addLine("Path 6 Done");
+                    // Turn on intake during path
+                    intake.setPower(0.4);
+                    pathStarted = true;
                 }
-
-                break;
-
-
-            case DRIVE_INTAKEPOSE2_TO_SAMPLE2:
-                follower.followPath(driveIntakePose2ToSample2, true);  
-                // Turn on intake during path
-                intake.setPower(0.4);   
-                pathState = PathState.DRIVE_INTAKEPOSE2_TO_SAMPLE2;
-                break;
-            case DRIVE_INTAKEPOSE2_TO_SAMPLE2:
-                if(!follower.isBusy()){ 
-                    // Turn off intake when path ends
-                    intake.setPower(0);
-
-                    telemetry.addLine("Path 7 Done");
+                
+                if (pathStarted && !follower.isBusy()) {
+                    pathState = PathState.DRIVE_SAMPLE2_TO_SHOOTPOSE;
+                    pathStarted = false;
                 }
                 break;
-
-
             case DRIVE_SAMPLE2_TO_SHOOTPOSE:
-                follower.followPath(driveSample2ToShootPose, true);
-                // Start shooter when path is halfway done  
+                if (!shooterStarted) {
+                    follower.followPath(driveSample2ToShootPose, true);
+                }
+                
+                // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
                     shooter.setVelocity(getTickSpeed(rpm));
                     shooterTimer.reset();
@@ -275,28 +279,40 @@ public class Redauto extends OpMode {
                 break;
 
             case SHOOT_SAMPLE2:
-               // Wait 2 seconds then open blocker and run intake
-                if (shooterTimer.seconds() >= 2.0) {
-                    blocker.setPosition(0.175);  // Open blocker
-                    intake.setPower(-0.8);  // Run intake motor
+                if (!follower.isBusy()) {
+                    // Wait 2 seconds then open blocker and run intake
+                    if (shooterTimer.seconds() >= 2.0) {
+                        blocker.setPosition(0.175);  // Open blocker
+                        intake.setPower(-0.8);  // Run intake motor
+                    }
+                    
+                    telemetry.addLine("Sample 2 Shot");
+                    
+                    // After 4 seconds total, move to end position
+                    if (shooterTimer.seconds() >= 4.0) {
+                        // Turn off shooter and intake, close blocker
+                        shooter.setVelocity(0);
+                        intake.setPower(0);
+                        blocker.setPosition(0.32);  // Close blocker
+                        
+                        pathState = PathState.DRIVE_SHOOTPOSE_TO_ENDPOSE;
+                        shooterStarted = false;
+                    }
                 }
-                
-                telemetry.addLine("Sample 2 Shot");
-                
-                // Turn off shooter and intake, close blocker
-                shooter.setVelocity(0);
-                intake.setPower(0);
-                blocker.setPosition(0.32);  // Close blocker
-                
-                pathState = PathState.DRIVE_SHOOTPOSE_TO_ENDPOSE;
                 break;
         
                 case DRIVE_SHOOTPOSE_TO_ENDPOSE:
-                if(!follower.isBusy()){
+                if (!pathStarted) {
+                    follower.followPath(driveShootPoseToEndPose, true);
+                    pathStarted = true;
+                }
+                
+                if (pathStarted && !follower.isBusy()) {
                     telemetry.addLine("Auto Complete");
+                    pathStarted = false;
                     requestOpModeStop();
                 }
-
+                break;
 
 
             default:
@@ -341,7 +357,7 @@ public class Redauto extends OpMode {
 
     public void start () {
     opmodeTimer.resetTimer();
-    setPathState(PathState);
+    pathState = PathState.DRIVE_STARTPOSE_TO_SHOOTPOSE;
 
     }
 
@@ -350,6 +366,7 @@ public class Redauto extends OpMode {
     public void loop() {
 
         follower.update();
+        
         statePathUpdate();
 
         telemetry.addData("Path state", pathState.toString());

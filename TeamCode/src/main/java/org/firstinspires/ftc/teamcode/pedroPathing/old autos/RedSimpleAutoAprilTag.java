@@ -4,6 +4,7 @@ package org.firstinspires.ftc.teamcode.pedroPathing;
 // NOTE: Uses dynamic voltage compensation for consistent performance
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -15,6 +16,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Red Alliance Autonomous - PRIMARY CODE
  * Features dynamic voltage compensation for maximum consistency
  */
+@Disabled
 @Autonomous(name = "RED - PRIMARY Auto", group = "Red")
 public class RedSimpleAutoAprilTag extends OpMode {
 
@@ -98,10 +100,10 @@ public class RedSimpleAutoAprilTag extends OpMode {
     public void loop() {
         if (isDriving && runtime.seconds() < 1.586) {
             // Drive backwards
-            frontLeftDrive.setPower(scalePower(-0.38));
-            frontRightDrive.setPower(scalePower(-0.38));
-            backLeftDrive.setPower(scalePower(-0.38));
-            backRightDrive.setPower(scalePower(-0.38));
+            frontLeftDrive.setPower(scalePower(-0.36));
+            frontRightDrive.setPower(scalePower(-0.36));
+            backLeftDrive.setPower(scalePower(-0.36));
+            backRightDrive.setPower(scalePower(-0.36));
 
             //SHOOT SEQUENCE
         } else if(isDriving && runtime.seconds() >= 1.586 && runtime.seconds() < 7.477 ) {
@@ -124,10 +126,10 @@ public class RedSimpleAutoAprilTag extends OpMode {
         } else if(isDriving && runtime.seconds() >= 7.477  && runtime.seconds() < 8.383 ) {
             shooter.setPower(0);
 
-            frontLeftDrive.setPower(scalePower(-0.4875));
-            backLeftDrive.setPower(scalePower(-0.4875));
-            frontRightDrive.setPower(scalePower(0.4875));
-            backRightDrive.setPower(scalePower(0.4875));
+            frontLeftDrive.setPower(scalePower(-0.48));
+            backLeftDrive.setPower(scalePower(-0.48));
+            frontRightDrive.setPower(scalePower(0.48));
+            backRightDrive.setPower(scalePower(0.48));
 
             intake.setPower(scalePower(1));
             //DRIVE to INTAKE1
@@ -139,10 +141,10 @@ public class RedSimpleAutoAprilTag extends OpMode {
 
             //BACK to shoot
         } else if(isDriving && runtime.seconds() >= 9.742  && runtime.seconds() < 11.101 ) {
-            frontLeftDrive.setPower(scalePower(0.4));
-            frontRightDrive.setPower(scalePower(0.4));
-            backLeftDrive.setPower(scalePower(0.4));
-            backRightDrive.setPower(scalePower(0.4));
+            frontLeftDrive.setPower(scalePower(0.375));
+            frontRightDrive.setPower(scalePower(0.375));
+            backLeftDrive.setPower(scalePower(0.375));
+            backRightDrive.setPower(scalePower(0.375));
             intake.setPower(0);
             //TURN to shoot, from intake1
         } else if(isDriving && runtime.seconds() >= 11.101  && runtime.seconds() < 12.007 ) {

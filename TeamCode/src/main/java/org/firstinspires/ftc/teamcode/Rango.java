@@ -16,8 +16,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 // Import the Pedro Pathing classes
-import com.pedropathing.follower.Follower;
-import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+// import com.pedropathing.follower.Follower;
+// import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 // Limelight SDK imports
 import com.qualcomm.hardware.limelightvision.Limelight3A;
@@ -45,7 +45,7 @@ public class Rango extends OpMode {
     private IMU imu;
 
     // Pedro Pathing Follower
-    private Follower follower;
+    // private Follower follower;
 
     // Limelight Variables
     private Limelight3A limelight;
@@ -164,13 +164,13 @@ public class Rango extends OpMode {
 
 
         // Initialize Pedro Pathing follower
-        follower = Constants.createFollower(hardwareMap);
+        // follower = Constants.createFollower(hardwareMap);
 
         // Drivetrain setup
-        frontLeftDrive.setDirection(DcMotorEx.Direction.FORWARD);
+        frontLeftDrive.setDirection(DcMotorEx.Direction.REVERSE);
         backLeftDrive.setDirection(DcMotorEx.Direction.REVERSE);
-        frontRightDrive.setDirection(DcMotorEx.Direction.REVERSE);
-        backRightDrive.setDirection(DcMotorEx.Direction.REVERSE);
+        frontRightDrive.setDirection(DcMotorEx.Direction.FORWARD);
+        backRightDrive.setDirection(DcMotorEx.Direction.FORWARD);
             
         frontLeftDrive.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         frontRightDrive.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
@@ -260,7 +260,7 @@ public class Rango extends OpMode {
         lastAButtonState = a1;
 
         // Update odometry localization
-        follower.update();
+        // follower.update();
         
         // Update fused position using Limelight + Odometry
         updateFusedPosition();
@@ -458,8 +458,8 @@ public class Rango extends OpMode {
      */
     private void updateFusedPosition() {
         // Get current odometry position
-        double odoX = follower.getPose().getX();
-        double odoY = follower.getPose().getY();
+        double odoX = 0; // follower.getPose().getX();
+        double odoY = 0; // follower.getPose().getY();
         
         // Get Limelight data
         LLResult result = limelight.getLatestResult();
@@ -597,7 +597,7 @@ public class Rango extends OpMode {
         telemetry.addLine("--- Fused Position ---");
         telemetry.addData("X Position", "%.2f", fusedX);
         telemetry.addData("Y Position", "%.2f", fusedY);
-        telemetry.addData("Heading (deg)", "%.1f", Math.toDegrees(follower.getPose().getHeading()));
+        // telemetry.addData("Heading (deg)", "%.1f", Math.toDegrees(follower.getPose().getHeading()));
         telemetry.addData("LL Weight", "%.2f", LIMELIGHT_WEIGHT);
 
         telemetry.update();

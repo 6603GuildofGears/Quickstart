@@ -32,7 +32,8 @@ import java.io.File;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-@Disabled
+
+
 @Config
 @TeleOp(name = "Mango", group = "Robot")
 public class Mango extends OpMode {
@@ -51,7 +52,8 @@ public class Mango extends OpMode {
     private Limelight3A limelight;
 
     // Constants
-    private final double TICKS_PER_REV = 28;
+    private final double TICKS_PER_REV = 28;  // For drive motors
+    private final double SHOOTER_TICKS_PER_REV = 1425.1;  // For shooter motor (gobilda 5203 bare motor)
     private final double gear = 1.0;  // Gear ratio for rotation speed
     
     // Auto-aim constants (tunable via FTC Dashboard)
@@ -62,6 +64,11 @@ public class Mango extends OpMode {
     // Auto-aim state
     private boolean autoAimEnabled = true;  // Start enabled
     private boolean lastAButtonState = false;
+    
+    // RPM control state
+    private boolean lastDpadUpState = false;
+    private boolean lastDpadDownState = false;
+    public static double rpm = 3000;
     
     // Sensor fusion for position tracking
     private double fusedX = 0;
@@ -259,6 +266,7 @@ public class Mango extends OpMode {
         updateFusedPosition();
 
         // Handle all robot controls
+        rpm = rpm;
         handleSubsystemControls();
         handleDriveControls();
 
@@ -271,17 +279,35 @@ public class Mango extends OpMode {
      */
     private void handleSubsystemControls() {
         // Intake motor control (simplified and corrected)
-        double rpm = 6000;
         // if (gamepad1.right_bumper) {
         //     // intake.setVelocity(getTickSpeed(rpm));
         //     intake.setPower(1.0);
         // } else 
+        
+
+        if(gamepad1.dpad_up && !lastDpadUpState){
+            rpm += 250;
+        }
+        if(gamepad1.dpad_down && !lastDpadDownState){
+            rpm -= 250;
+        }
+        
+        lastDpadUpState = gamepad1.dpad_up;
+        lastDpadDownState = gamepad1.dpad_down;
+
+
+    
+
         if (gamepad1.right_trigger > 0.1) { // Added a deadzone for the trigger
-            intake.setVelocity(getTickSpeed(rpm));
+            // Convert RPM to power (6000 RPM = max speed for 5203 motor)
+            intake.setPower((rpm / 6000.0));
       
         } else {
             intake.setVelocity(0);
         }
+
+        // RPM adjustment controls (update before using rpm)
+
 
         // Blocker servo control
         
@@ -301,7 +327,6 @@ public class Mango extends OpMode {
         } else {
             blocker.setPosition(0.3);
         }
-        
     }
 
     /**
@@ -372,10 +397,10 @@ public class Mango extends OpMode {
     }
 
     /**
-     * Converts RPM to ticks per second for the motor.
+     * Converts RPM to ticks per second for the shooter motor.
      */
     public double getTickSpeed(double speed) {
-        return speed * TICKS_PER_REV / 60;
+        return speed * SHOOTER_TICKS_PER_REV / 60;
     }
 
     /**
@@ -570,6 +595,10 @@ public class Mango extends OpMode {
         // Auto-Aim Status
         telemetry.addLine("--- Auto-Aim ---");
         telemetry.addData("Auto-Aim", autoAimEnabled ? "ENABLED" : "DISABLED");
+        telemetry.addLine();
+
+        telemetry.addLine("--- Shooter Speed ---");
+        telemetry.addData("Shooter RPM", "%.0f", rpm);
         telemetry.addLine();
         
         // AprilTag Detection

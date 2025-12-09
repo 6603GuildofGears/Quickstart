@@ -4,6 +4,7 @@ package org.firstinspires.ftc.teamcode.pedroPathing;
 // NOTE: Uses dynamic voltage compensation for consistent performance
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -15,6 +16,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Blue Alliance Autonomous - PRIMARY CODE
  * Features dynamic voltage compensation for maximum consistency
  */
+@Disabled
 @Autonomous(name = "BLUE - PRIMARY Auto", group = "Blue")
 public class BlueSimpleAutoAprilTag extends OpMode {
 
@@ -98,10 +100,10 @@ public class BlueSimpleAutoAprilTag extends OpMode {
     public void loop() {
         if (isDriving && runtime.seconds() < 1.586) {
             // Drive backwards
-            frontLeftDrive.setPower(scalePower(-0.39));
-            frontRightDrive.setPower(scalePower(-0.4));
-            backLeftDrive.setPower(scalePower(-0.39));
-            backRightDrive.setPower(scalePower(-0.4));
+            frontLeftDrive.setPower(scalePower(-0.37));
+            frontRightDrive.setPower(scalePower(-0.38));
+            backLeftDrive.setPower(scalePower(-0.37));
+            backRightDrive.setPower(scalePower(-0.38));
         
             //SHOOT SEQUENCE
         } else if(isDriving && runtime.seconds() >= 1.586 && runtime.seconds() < 7.477 ) {
