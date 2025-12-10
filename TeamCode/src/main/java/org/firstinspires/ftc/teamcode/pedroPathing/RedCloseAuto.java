@@ -62,24 +62,26 @@ public class RedCloseAuto extends OpMode {
     private final Pose shootPose = new Pose(87, 92, Math.toRadians(40));    // Shooting position
 
 
-    private final Pose intakePose = new Pose(110, 84, Math.toRadians(180));    // Intake position
+    private final Pose intakePose = new Pose(110, 100, Math.toRadians(180));    // Intake position
 
 
-    private final Pose sample1 = new Pose(114, 84, Math.toRadians(180));
+    private final Pose sample1 = new Pose(134, 100, Math.toRadians(180)); //114, 84
+
+    private final Pose intakePose2 = new Pose(100, 72.5, Math.toRadians(180));
 
 
-    private final Pose intakePose2 = new Pose(110, 60, Math.toRadians(180));
+    private final Pose sample2 = new Pose(134, 72.5, Math.toRadians(180)); //114, 60
 
+    private final Pose intakePose3 = new Pose(110, 50, Math.toRadians(180));
 
-    private final Pose sample2 = new Pose(114, 60, Math.toRadians(180));
-
+    private final Pose sample3 = new Pose(134, 50, Math.toRadians(180)); //114, 40
 
     private final Pose endPose = new Pose(91, 115, Math.toRadians(40));  // End position (same as shoot pose for now)
 
     
     
 
-    double rpm = 3300;
+    double rpm = 3100;
 
     private PathChain driveStartPoseShootPose;
     private PathChain driveShootPreloadToIntakePose;
@@ -94,36 +96,36 @@ public class RedCloseAuto extends OpMode {
      
      driveStartPoseShootPose = follower.pathBuilder()
             .addPath(new BezierLine(startPose, shootPose))
-            .setLinearHeadingInterpolation(startPose.getHeading(), shootPose.getHeading())
+            .setConstantHeadingInterpolation(shootPose.getHeading())
             .build();
 
      driveShootPreloadToIntakePose = follower.pathBuilder()
             .addPath(new BezierLine(shootPose, intakePose))
-            .setLinearHeadingInterpolation(shootPose.getHeading(), intakePose.getHeading())
+            .setConstantHeadingInterpolation(intakePose.getHeading())
             .build();
         driveIntakePoseToSample1 = follower.pathBuilder()
             .addPath(new BezierLine(intakePose, sample1))
-            .setLinearHeadingInterpolation(intakePose.getHeading(), sample1.getHeading())
+            .setConstantHeadingInterpolation(sample1.getHeading())
             .build();
         driveSample1ToShootPose = follower.pathBuilder()
             .addPath(new BezierLine(sample1, shootPose))
-            .setLinearHeadingInterpolation(sample1.getHeading(), shootPose.getHeading())
+            .setConstantHeadingInterpolation(shootPose.getHeading())
             .build();
         driveShootPoseToIntakePose2 = follower.pathBuilder()
             .addPath(new BezierLine(shootPose, intakePose2))
-            .setLinearHeadingInterpolation(shootPose.getHeading(), intakePose2.getHeading())
+            .setConstantHeadingInterpolation(intakePose2.getHeading())
             .build();   
         driveIntakePose2ToSample2 = follower.pathBuilder()
             .addPath(new BezierLine(intakePose2, sample2))
-            .setLinearHeadingInterpolation(intakePose2.getHeading(), sample2.getHeading())
+            .setConstantHeadingInterpolation(sample2.getHeading())
             .build();
         driveSample2ToShootPose = follower.pathBuilder()
             .addPath(new BezierLine(sample2, shootPose))
-            .setLinearHeadingInterpolation(sample2.getHeading(), shootPose.getHeading())
+            .setConstantHeadingInterpolation(shootPose.getHeading())
             .build();
         driveShootPoseToEndPose = follower.pathBuilder()
             .addPath(new BezierLine(shootPose, endPose))
-            .setLinearHeadingInterpolation(shootPose.getHeading(), endPose.getHeading())
+            .setConstantHeadingInterpolation(endPose.getHeading())
             .build();
     }
 
@@ -188,7 +190,7 @@ public class RedCloseAuto extends OpMode {
                     follower.followPath(driveIntakePoseToSample1, true);
                     
                     // Turn on intake during path
-                    intake.setPower(0.4);
+                    intake.setPower(-0.4);
                     pathStarted = true;
                 }
                 
@@ -252,7 +254,7 @@ public class RedCloseAuto extends OpMode {
                     follower.followPath(driveIntakePose2ToSample2, true);
                     
                     // Turn on intake during path
-                    intake.setPower(0.4);
+                    intake.setPower(-0.4);
                     pathStarted = true;
                 }
                 

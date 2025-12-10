@@ -57,19 +57,23 @@ public class BlueCloseAuto extends OpMode {
       PathState pathState;
 
 
-    private final Pose startPose = new Pose(22, 125, Math.toRadians(140));  // Start facing away from field
+    private final Pose startPose = new Pose(22, 125, Math.toRadians(143));  // Start facing away from field
     
-    private final Pose shootPose = new Pose(50.75, 98, Math.toRadians(137));    // Shooting position
+    private final Pose shootPose = new Pose(57, 92, Math.toRadians(140));    // Shooting position
 
-    private final Pose intakePose = new Pose(42, 84, Math.toRadians(0));    // Intake position
+    private final Pose intakePose = new Pose(34, 100, Math.toRadians(0));    // Intake position
 
-    private final Pose sample1 = new Pose(30, 84, Math.toRadians(0));
+    private final Pose sample1 = new Pose(10, 100, Math.toRadians(0));
 
-    private final Pose intakePose2 = new Pose(42, 60, Math.toRadians(0));
+    private final Pose intakePose2 = new Pose(44, 72.5, Math.toRadians(0));
 
-    private final Pose sample2 = new Pose(30, 60, Math.toRadians(0));
+    private final Pose sample2 = new Pose(10, 72.5, Math.toRadians(0));
 
-    private final Pose endPose = new Pose(50, 115 , Math.toRadians(137));  // End position (same as shoot pose for now)
+    private final Pose intakePose3 = new Pose(34, 50, Math.toRadians(0));
+
+    private final Pose sample3 = new Pose(10, 50, Math.toRadians(0));
+
+    private final Pose endPose = new Pose(53, 115, Math.toRadians(140));  // End position
 
     
     
