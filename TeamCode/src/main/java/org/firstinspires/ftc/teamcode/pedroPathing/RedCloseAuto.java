@@ -61,11 +61,13 @@ public class RedCloseAuto extends OpMode {
    
     private final Pose shootPose = new Pose(87, 92, Math.toRadians(40));    // Shooting position
 
+    private final Pose shootPoseAlpha = new Pose(87, 92, Math.toRadians(30));    // Shooting position
 
-    private final Pose intakePose = new Pose(110, 100, Math.toRadians(180));    // Intake position
+
+    private final Pose intakePose = new Pose(110, 95, Math.toRadians(180));    // Intake position
 
 
-    private final Pose sample1 = new Pose(134, 100, Math.toRadians(180)); //114, 84
+    private final Pose sample1 = new Pose(130, 95, Math.toRadians(180)); //114, 84
 
     private final Pose intakePose2 = new Pose(100, 72.5, Math.toRadians(180));
 
@@ -108,8 +110,8 @@ public class RedCloseAuto extends OpMode {
             .setConstantHeadingInterpolation(sample1.getHeading())
             .build();
         driveSample1ToShootPose = follower.pathBuilder()
-            .addPath(new BezierLine(sample1, shootPose))
-            .setConstantHeadingInterpolation(shootPose.getHeading())
+            .addPath(new BezierLine(sample1, shootPoseAlpha))
+            .setLinearHeadingInterpolation(sample1.getHeading(), shootPoseAlpha.getHeading())
             .build();
         driveShootPoseToIntakePose2 = follower.pathBuilder()
             .addPath(new BezierLine(shootPose, intakePose2))
@@ -120,8 +122,8 @@ public class RedCloseAuto extends OpMode {
             .setConstantHeadingInterpolation(sample2.getHeading())
             .build();
         driveSample2ToShootPose = follower.pathBuilder()
-            .addPath(new BezierLine(sample2, shootPose))
-            .setConstantHeadingInterpolation(shootPose.getHeading())
+            .addPath(new BezierLine(sample2, shootPoseAlpha))
+            .setLinearHeadingInterpolation(sample2.getHeading(), shootPoseAlpha.getHeading())
             .build();
         driveShootPoseToEndPose = follower.pathBuilder()
             .addPath(new BezierLine(shootPose, endPose))
@@ -138,7 +140,7 @@ public class RedCloseAuto extends OpMode {
                 }
                 
                 // Start shooter when path is halfway done
-                if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
+                if (follower.getCurrentTValue() >= 0.4 && !shooterStarted) {
                     shooter.setVelocity(getTickSpeed(rpm));
                     shooterTimer.reset();
                     shooterStarted = true;
@@ -154,11 +156,11 @@ public class RedCloseAuto extends OpMode {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
                         blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.8);  // Run intake motor
+                        intake.setPower(-0.625);  // Run intake motor
                     }
                     
                     // After 4 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 4.0) {
+                    if (shooterTimer.seconds() >= 5) {
                         pathState = PathState.DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE;
                         shooterStarted = false;
                     }
@@ -190,7 +192,7 @@ public class RedCloseAuto extends OpMode {
                     follower.followPath(driveIntakePoseToSample1, true);
                     
                     // Turn on intake during path
-                    intake.setPower(-0.4);
+                    intake.setPower(-0.75);
                     pathStarted = true;
                 }
                 
@@ -200,8 +202,9 @@ public class RedCloseAuto extends OpMode {
                 }
                 break;
             case DRIVE_SAMPLE1_TO_SHOOTPOSE:
-                if (!shooterStarted) {
+                if (!pathStarted) {
                     follower.followPath(driveSample1ToShootPose, true);
+                    pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
@@ -213,6 +216,7 @@ public class RedCloseAuto extends OpMode {
                 
                 if (!follower.isBusy()) {
                     pathState = PathState.SHOOT_SAMPLE1;
+                    pathStarted = false;
                 }
                 break;
                 
@@ -221,11 +225,11 @@ public class RedCloseAuto extends OpMode {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
                         blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.8);  // Run intake motor
+                        intake.setPower(-0.625);  // Run intake motor
                     }
                     
                     // After 4 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 4.0) {
+                    if (shooterTimer.seconds() >= 5) {
                         pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
                         shooterStarted = false;
                     }
@@ -254,7 +258,7 @@ public class RedCloseAuto extends OpMode {
                     follower.followPath(driveIntakePose2ToSample2, true);
                     
                     // Turn on intake during path
-                    intake.setPower(-0.4);
+                    intake.setPower(-0.75);
                     pathStarted = true;
                 }
                 
@@ -264,8 +268,9 @@ public class RedCloseAuto extends OpMode {
                 }
                 break;
             case DRIVE_SAMPLE2_TO_SHOOTPOSE:
-                if (!shooterStarted) {
+                if (!pathStarted) {
                     follower.followPath(driveSample2ToShootPose, true);
+                    pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
@@ -277,6 +282,7 @@ public class RedCloseAuto extends OpMode {
                 
                 if (!follower.isBusy()) {
                     pathState = PathState.SHOOT_SAMPLE2;
+                    pathStarted = false;
                 }
                 break;
 

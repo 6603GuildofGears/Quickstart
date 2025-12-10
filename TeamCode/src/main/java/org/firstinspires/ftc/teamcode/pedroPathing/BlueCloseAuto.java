@@ -61,11 +61,16 @@ public class BlueCloseAuto extends OpMode {
     
     private final Pose shootPose = new Pose(57, 92, Math.toRadians(140));    // Shooting position
 
-    private final Pose intakePose = new Pose(34, 100, Math.toRadians(0));    // Intake position
+    private final Pose shootPoseAlpha = new Pose(57, 92, Math.toRadians(150));    // Shooting position
 
-    private final Pose sample1 = new Pose(10, 100, Math.toRadians(0));
+
+    private final Pose intakePose = new Pose(34, 95, Math.toRadians(0));    // Intake position
+
+
+    private final Pose sample1 = new Pose(14, 95, Math.toRadians(0));
 
     private final Pose intakePose2 = new Pose(44, 72.5, Math.toRadians(0));
+
 
     private final Pose sample2 = new Pose(10, 72.5, Math.toRadians(0));
 
@@ -105,8 +110,8 @@ public class BlueCloseAuto extends OpMode {
             .setLinearHeadingInterpolation(intakePose.getHeading(), sample1.getHeading())
             .build();
         driveSample1ToShootPose = follower.pathBuilder()
-            .addPath(new BezierLine(sample1, shootPose))
-            .setLinearHeadingInterpolation(sample1.getHeading(), shootPose.getHeading())
+            .addPath(new BezierLine(sample1, shootPoseAlpha))
+            .setLinearHeadingInterpolation(sample1.getHeading(), shootPoseAlpha.getHeading())
             .build();
         driveShootPoseToIntakePose2 = follower.pathBuilder()
             .addPath(new BezierLine(shootPose, intakePose2))
@@ -117,8 +122,8 @@ public class BlueCloseAuto extends OpMode {
             .setLinearHeadingInterpolation(intakePose2.getHeading(), sample2.getHeading())
             .build();
         driveSample2ToShootPose = follower.pathBuilder()
-            .addPath(new BezierLine(sample2, shootPose))
-            .setLinearHeadingInterpolation(sample2.getHeading(), shootPose.getHeading())
+            .addPath(new BezierLine(sample2, shootPoseAlpha))
+            .setLinearHeadingInterpolation(sample2.getHeading(), shootPoseAlpha.getHeading())
             .build();
         driveShootPoseToEndPose = follower.pathBuilder()
             .addPath(new BezierLine(shootPose, endPose))
@@ -151,11 +156,11 @@ public class BlueCloseAuto extends OpMode {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
                         blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.8);  // Run intake motor
+                        intake.setPower(-0.625);  // Run intake motor
                     }
                     
                     // After 4 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 4.0) {
+                    if (shooterTimer.seconds() >= 5) {
                         pathState = PathState.DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE;
                         shooterStarted = false;
                     }
@@ -187,7 +192,7 @@ public class BlueCloseAuto extends OpMode {
                     follower.followPath(driveIntakePoseToSample1, true);
                     
                     // Turn on intake during path
-                    intake.setPower(0.4);
+                    intake.setPower(-0.4);
                     pathStarted = true;
                 }
                 
@@ -197,8 +202,9 @@ public class BlueCloseAuto extends OpMode {
                 }
                 break;
             case DRIVE_SAMPLE1_TO_SHOOTPOSE:
-                if (!shooterStarted) {
+                if (!pathStarted) {
                     follower.followPath(driveSample1ToShootPose, true);
+                    pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
@@ -210,6 +216,7 @@ public class BlueCloseAuto extends OpMode {
                 
                 if (!follower.isBusy()) {
                     pathState = PathState.SHOOT_SAMPLE1;
+                    pathStarted = false;
                 }
                 break;
                 
@@ -218,11 +225,11 @@ public class BlueCloseAuto extends OpMode {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
                         blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.8);  // Run intake motor
+                        intake.setPower(-0.625);  // Run intake motor
                     }
                     
                     // After 4 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 4.0) {
+                    if (shooterTimer.seconds() >= 5) {
                         pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
                         shooterStarted = false;
                     }
@@ -251,7 +258,7 @@ public class BlueCloseAuto extends OpMode {
                     follower.followPath(driveIntakePose2ToSample2, true);
                     
                     // Turn on intake during path
-                    intake.setPower(0.4);
+                    intake.setPower(-0.4);
                     pathStarted = true;
                 }
                 
@@ -261,8 +268,9 @@ public class BlueCloseAuto extends OpMode {
                 }
                 break;
             case DRIVE_SAMPLE2_TO_SHOOTPOSE:
-                if (!shooterStarted) {
+                if (!pathStarted) {
                     follower.followPath(driveSample2ToShootPose, true);
+                    pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
@@ -274,6 +282,7 @@ public class BlueCloseAuto extends OpMode {
                 
                 if (!follower.isBusy()) {
                     pathState = PathState.SHOOT_SAMPLE2;
+                    pathStarted = false;
                 }
                 break;
 
@@ -282,13 +291,13 @@ public class BlueCloseAuto extends OpMode {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
                         blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.8);  // Run intake motor
+                        intake.setPower(-0.625);  // Run intake motor
                     }
                     
                     telemetry.addLine("Sample 2 Shot");
                     
                     // After 4 seconds total, move to end position
-                    if (shooterTimer.seconds() >= 4.0) {
+                    if (shooterTimer.seconds() >= 5) {
                         // Turn off shooter and intake, close blocker
                         shooter.setVelocity(0);
                         intake.setPower(0);
