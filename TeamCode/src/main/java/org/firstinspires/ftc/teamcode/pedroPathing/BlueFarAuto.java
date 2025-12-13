@@ -74,7 +74,9 @@ public class BlueFarAuto extends OpMode {
     
     
 
-    double rpm = 3700;  // Use 3700 RPM like BlueFarAuto
+    double rpmPreload = 3800;  // RPM for preload shot
+    double rpmSample1 = 3800;  // RPM for first sample shot
+    double rpmSample2 = 3500;  // RPM for second sample shot (reduced to prevent overshoot)
 
     private PathChain driveStartPoseShootPose;
     private PathChain driveShootPreloadToIntakePose;
@@ -131,7 +133,7 @@ public class BlueFarAuto extends OpMode {
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmPreload));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }
@@ -181,11 +183,12 @@ public class BlueFarAuto extends OpMode {
             case DRIVE_SAMPLE1_TO_SHOOTPOSE:
                 if (!shooterStarted) {
                     follower.followPath(driveSample1ToShootPose, true);
+                    intake.setPower(0);  // Stop intake while driving to shoot
                 }
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmSample1));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }
@@ -230,11 +233,12 @@ public class BlueFarAuto extends OpMode {
             case DRIVE_SAMPLE2_TO_SHOOTPOSE:
                 if (!shooterStarted) {
                     follower.followPath(driveSample2ToShootPose, true);
+                    intake.setPower(0);  // Stop intake while driving to shoot
                 }
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmSample2));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }

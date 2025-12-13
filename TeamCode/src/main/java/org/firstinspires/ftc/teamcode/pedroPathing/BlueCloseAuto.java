@@ -28,10 +28,10 @@ public class BlueCloseAuto extends OpMode {
     
     // Shooter constants
     private final double TICKS_PER_REV = 28;
-    private static final double SHOOTER_P = 1.5;
+    private static final double SHOOTER_P = 20;
     private static final double SHOOTER_I = 0.15;
-    private static final double SHOOTER_D = 0.1;
-    private static final double SHOOTER_F = 12.5;
+    private static final double SHOOTER_D = 1;
+    private static final double SHOOTER_F = 20;
 
     public enum PathState {
         // start pos to end pos
@@ -57,11 +57,11 @@ public class BlueCloseAuto extends OpMode {
       PathState pathState;
 
 
-    private final Pose startPose = new Pose(22, 125, Math.toRadians(143));  // Start facing away from field
+    private final Pose startPose = new Pose(22, 125, Math.toRadians(135));  // Start facing away from field
     
-    private final Pose shootPose = new Pose(57, 92, Math.toRadians(140));    // Shooting position
+    private final Pose shootPose = new Pose(54, 90, Math.toRadians(135));    // Shooting position
 
-    private final Pose shootPoseAlpha = new Pose(57, 92, Math.toRadians(110));    // Shooting position
+    private final Pose shootPoseAlpha = new Pose(54, 90, Math.toRadians(145));    // Shooting position
 
 
     private final Pose intakePose = new Pose(36, 95, Math.toRadians(0));    // Intake position
@@ -69,21 +69,23 @@ public class BlueCloseAuto extends OpMode {
 
     private final Pose sample1 = new Pose(14, 95, Math.toRadians(0));
 
-    private final Pose intakePose2 = new Pose(46, 72.5, Math.toRadians(0));
+    private final Pose intakePose2 = new Pose(46,  72.2, Math.toRadians(0));
 
 
-    private final Pose sample2 = new Pose(10, 72.5, Math.toRadians(0));
+    private final Pose sample2 = new Pose(10, 72.2, Math.toRadians(0));
 
     private final Pose intakePose3 = new Pose(36, 50, Math.toRadians(0));
 
     private final Pose sample3 = new Pose(10, 50, Math.toRadians(0));
 
-    private final Pose endPose = new Pose(53, 115, Math.toRadians(140));  // End position
+    private final Pose endPose = new Pose(53, 65, Math.toRadians(140));  // End position
 
     
     
 
-    double rpm = 3300;
+    double rpmPreload = 3200;  // RPM for preload shot
+    double rpmSample1 = 3200;  // RPM for first sample shot
+    double rpmSample2 = 3100;  // RPM for second sample shot (reduced to prevent overshoot)
 
     private PathChain driveStartPoseShootPose;
     private PathChain driveShootPreloadToIntakePose;
@@ -141,7 +143,7 @@ public class BlueCloseAuto extends OpMode {
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmPreload));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }
@@ -204,12 +206,13 @@ public class BlueCloseAuto extends OpMode {
             case DRIVE_SAMPLE1_TO_SHOOTPOSE:
                 if (!pathStarted) {
                     follower.followPath(driveSample1ToShootPose, true);
+                    intake.setPower(0);  // Stop intake while driving to shoot
                     pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmSample1));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }
@@ -232,6 +235,7 @@ public class BlueCloseAuto extends OpMode {
                     if (shooterTimer.seconds() >= 6) {
                         pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
                         shooterStarted = false;
+
                     }
                     
                     telemetry.addLine("Sample 1 Shot");
@@ -270,12 +274,13 @@ public class BlueCloseAuto extends OpMode {
             case DRIVE_SAMPLE2_TO_SHOOTPOSE:
                 if (!pathStarted) {
                     follower.followPath(driveSample2ToShootPose, true);
+                    intake.setPower(0);  // Stop intake while driving to shoot
                     pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmSample2));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }

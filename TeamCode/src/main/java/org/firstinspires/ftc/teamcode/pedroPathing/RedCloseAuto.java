@@ -28,10 +28,10 @@ public class RedCloseAuto extends OpMode {
     
     // Shooter constants
     private final double TICKS_PER_REV = 28;
-    private static final double SHOOTER_P = 2.0;
+    private static final double SHOOTER_P = 20;
     private static final double SHOOTER_I = 0.15;
-    private static final double SHOOTER_D = 0.1;
-    private static final double SHOOTER_F = 12.5;
+    private static final double SHOOTER_D = 1;
+    private static final double SHOOTER_F = 20;
 
     public enum PathState {
         // start pos to end pos
@@ -57,11 +57,11 @@ public class RedCloseAuto extends OpMode {
       PathState pathState;
 
 
-    private final Pose startPose = new Pose(122, 125, Math.toRadians(37));  // Start facing away from field
+    private final Pose startPose = new Pose(122, 125, Math.toRadians(45));  // Start facing away from field
    
-    private final Pose shootPose = new Pose(87, 92, Math.toRadians(40));    // Shooting position
+    private final Pose shootPose = new Pose(92, 92, Math.toRadians(45));    // Shooting position
 
-    private final Pose shootPoseAlpha = new Pose(87, 92, Math.toRadians(30));    // Shooting position
+    private final Pose shootPoseAlpha = new Pose(92, 92, Math.toRadians(45));    // Shooting position
 
 
     private final Pose intakePose = new Pose(112, 95, Math.toRadians(180));    // Intake position
@@ -78,12 +78,14 @@ public class RedCloseAuto extends OpMode {
 
     private final Pose sample3 = new Pose(134, 50, Math.toRadians(180)); //114, 40
 
-    private final Pose endPose = new Pose(91, 115, Math.toRadians(40));  // End position (same as shoot pose for now)
+    private final Pose endPose = new Pose(91, 65, Math.toRadians(40));  // End position (same as shoot pose for now)
 
     
     
 
-    double rpm = 2750;
+    double rpmPreload = 3100;  // RPM for preload shot
+    double rpmSample1 = 2700;  // RPM for first sample shot
+    double rpmSample2 = 2700;  // RPM for second sample shot (reduced to prevent overshoot)
 
     private PathChain driveStartPoseShootPose;
     private PathChain driveShootPreloadToIntakePose;
@@ -141,7 +143,7 @@ public class RedCloseAuto extends OpMode {
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.4 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmPreload));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }
@@ -204,12 +206,13 @@ public class RedCloseAuto extends OpMode {
             case DRIVE_SAMPLE1_TO_SHOOTPOSE:
                 if (!pathStarted) {
                     follower.followPath(driveSample1ToShootPose, true);
+                    intake.setPower(0);  // Stop intake while driving to shoot
                     pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmSample1));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }
@@ -270,12 +273,13 @@ public class RedCloseAuto extends OpMode {
             case DRIVE_SAMPLE2_TO_SHOOTPOSE:
                 if (!pathStarted) {
                     follower.followPath(driveSample2ToShootPose, true);
+                    intake.setPower(0);  // Stop intake while driving to shoot
                     pathStarted = true;
                 }
                 
                 // Start shooter when path is halfway done
                 if (follower.getCurrentTValue() >= 0.5 && !shooterStarted) {
-                    shooter.setVelocity(getTickSpeed(rpm));
+                    shooter.setVelocity(getTickSpeed(rpmSample2));
                     shooterTimer.reset();
                     shooterStarted = true;
                 }

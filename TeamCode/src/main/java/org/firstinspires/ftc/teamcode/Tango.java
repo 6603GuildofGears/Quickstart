@@ -51,14 +51,14 @@ public class Tango extends OpMode {
     private Limelight3A limelight;
 
     // Constants
-    private final double TICKS_PER_REV = 28;
+    private final double SHOOTER_TICKS_PER_REV = 1425.1;  // 5203 motor encoder counts
     private final double gear = 1.0;  // Gear ratio for rotation speed
     
-    // PID coefficients for shooter stability (reduced P for less overshoot)
-    private static final double SHOOTER_P = 1.5;   // Proportional (lower = less aggressive)
-    private static final double SHOOTER_I = 0.15;  // Integral (helps eliminate steady-state error)
-    private static final double SHOOTER_D = 0.1;   // Derivative (dampens oscillation)
-    private static final double SHOOTER_F = 12.5;  // Feedforward (velocity control)
+    // PID coefficients for shooter (tunable via panels at 192.168.43.1:8001)
+    public static double SHOOTER_P = 1.5;
+    public static double SHOOTER_I = 0.15;
+    public static double SHOOTER_D = 0.1;
+    public static double SHOOTER_F = 12.5;
     
     // Auto-aim constants (tunable via FTC Dashboard)
     public static double KP_ROTATE = 0.02;
@@ -209,6 +209,9 @@ public class Tango extends OpMode {
 
     @Override
     public void loop() {
+        // Update shooter PIDF from panel values
+        intake.setVelocityPIDFCoefficients(SHOOTER_P, SHOOTER_I, SHOOTER_D, SHOOTER_F);
+        
         // Gamepad input variables
         boolean LStickIn2 = gamepad2.left_stick_button;
         boolean RStickIn2 = gamepad2.right_stick_button;
@@ -278,7 +281,7 @@ public class Tango extends OpMode {
      */
     private void handleSubsystemControls() {
         // Intake motor control (simplified and corrected)
-        double rpm = 2500;
+          double rpm = 2500;
         
         // Right bumper = full speed (NOTE: 'intake' variable is actually the shooter motor due to hardware swap)
         if(gamepad2.right_bumper && gamepad2.b) {
@@ -372,10 +375,10 @@ public class Tango extends OpMode {
     }
 
     /**
-     * Converts RPM to ticks per second for the motor.
+     * Converts RPM to ticks per second for the shooter motor.
      */
     public double getTickSpeed(double speed) {
-        return speed * TICKS_PER_REV / 60;
+        return speed * SHOOTER_TICKS_PER_REV / 60;
     }
 
     /**
