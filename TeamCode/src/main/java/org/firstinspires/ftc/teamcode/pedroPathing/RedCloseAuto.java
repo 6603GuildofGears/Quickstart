@@ -61,18 +61,18 @@ public class RedCloseAuto extends OpMode {
    
     private final Pose shootPose = new Pose(92, 92, Math.toRadians(45));    // Shooting position
 
-    private final Pose shootPoseAlpha = new Pose(92, 92, Math.toRadians(45));    // Shooting position
+    private final Pose shootPoseAlpha = new Pose(92, 92, Math.toRadians(40));    // Shooting position
 
 
-    private final Pose intakePose = new Pose(112, 95, Math.toRadians(180));    // Intake position
+    private final Pose intakePose = new Pose(102, 95, Math.toRadians(225));    // bridge pose position
 
 
-    private final Pose sample1 = new Pose(130, 95, Math.toRadians(180)); //114, 84
+    private final Pose sample1 = new Pose(137, 95, Math.toRadians(180)); //114, 84
 
-    private final Pose intakePose2 = new Pose(102, 72.5, Math.toRadians(180));
+    private final Pose intakePose2 = new Pose(102, 72.5, Math.toRadians(180)); // bridge pose
 
 
-    private final Pose sample2 = new Pose(134, 72.5, Math.toRadians(180)); //114, 60
+    private final Pose sample2 = new Pose(140, 72.5, Math.toRadians(180)); //114, 60
 
     private final Pose intakePose3 = new Pose(112, 50, Math.toRadians(180));
 
@@ -83,7 +83,7 @@ public class RedCloseAuto extends OpMode {
     
     
 
-    double rpmPreload = 3100;  // RPM for preload shot
+    double rpmPreload = 2900;  // RPM for preload shot
     double rpmSample1 = 2700;  // RPM for first sample shot
     double rpmSample2 = 2700;  // RPM for second sample shot (reduced to prevent overshoot)
 
@@ -158,7 +158,7 @@ public class RedCloseAuto extends OpMode {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
                         blocker.setPosition(0.15);  // Open blocker
-                        intake.setPower(-0.6);  // Run intake motor
+                        intake.setPower(-0.5);  // Run intake motor
                     }
                     
                     // After 6 seconds total, move to next state
@@ -194,7 +194,7 @@ public class RedCloseAuto extends OpMode {
                     follower.followPath(driveIntakePoseToSample1, true);
                     
                     // Turn on intake during path
-                    intake.setPower(-0.575);
+                    intake.setPower(-0.625);
                     pathStarted = true;
                 }
                 
@@ -228,11 +228,11 @@ public class RedCloseAuto extends OpMode {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
                         blocker.setPosition(0.15);  // Open blocker
-                        intake.setPower(-0.475);  // Run intake motor
+                        intake.setPower(-0.4);  // Run intake motor
                     }
                     
                     // After 6 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 6) {
+                    if (shooterTimer.seconds() >= 8) {
                         pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
                         shooterStarted = false;
                     }
@@ -261,7 +261,7 @@ public class RedCloseAuto extends OpMode {
                     follower.followPath(driveIntakePose2ToSample2, true);
                     
                     // Turn on intake during path
-                    intake.setPower(-0.575);
+                    intake.setPower(-0.625);
                     pathStarted = true;
                 }
                 
@@ -295,13 +295,13 @@ public class RedCloseAuto extends OpMode {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
                         blocker.setPosition(0.15);  // Open blocker
-                        intake.setPower(-0.65);  // Run intake motor
+                        intake.setPower(-0.4);  // Run intake motor
                     }
                     
                     telemetry.addLine("Sample 2 Shot");
                     
                     // After 6 seconds total, move to end position
-                    if (shooterTimer.seconds() >= 6) {
+                    if (shooterTimer.seconds() >= 8) {
                         // Turn off shooter and intake, close blocker
                         shooter.setVelocity(0);
                         intake.setPower(0);

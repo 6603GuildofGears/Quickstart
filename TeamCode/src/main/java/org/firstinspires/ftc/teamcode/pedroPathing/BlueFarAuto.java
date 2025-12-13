@@ -13,7 +13,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-
+@Disabled
 @Autonomous(name = "PEDRO - Blue Far Auto", group = "Blue")
 public class BlueFarAuto extends OpMode {
     private Follower follower;

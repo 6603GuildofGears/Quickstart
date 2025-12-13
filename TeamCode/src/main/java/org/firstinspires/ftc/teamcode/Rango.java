@@ -278,7 +278,7 @@ public class Rango extends OpMode {
      */
     private void handleSubsystemControls() {
         // Intake motor control (simplified and corrected)
-        double rpm = 2500;
+        double rpm = 3000;
         
         // Right bumper = full speed (NOTE: 'intake' variable is actually the shooter motor due to hardware swap)
         if(gamepad2.right_bumper && gamepad2.b) {

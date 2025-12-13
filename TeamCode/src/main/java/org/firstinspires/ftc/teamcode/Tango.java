@@ -51,14 +51,14 @@ public class Tango extends OpMode {
     private Limelight3A limelight;
 
     // Constants
-    private final double SHOOTER_TICKS_PER_REV = 1425.1;  // 5203 motor encoder counts
+    private final double TICKS_PER_REV = 28;
     private final double gear = 1.0;  // Gear ratio for rotation speed
     
-    // PID coefficients for shooter (tunable via panels at 192.168.43.1:8001)
-    public static double SHOOTER_P = 1.5;
-    public static double SHOOTER_I = 0.15;
-    public static double SHOOTER_D = 0.1;
-    public static double SHOOTER_F = 12.5;
+    // PID coefficients for shooter stability (reduced P for less overshoot)
+    private static final double SHOOTER_P = 1.5;   // Proportional (lower = less aggressive)
+    private static final double SHOOTER_I = 0.15;  // Integral (helps eliminate steady-state error)
+    private static final double SHOOTER_D = 0.1;   // Derivative (dampens oscillation)
+    private static final double SHOOTER_F = 12.5;  // Feedforward (velocity control)
     
     // Auto-aim constants (tunable via FTC Dashboard)
     public static double KP_ROTATE = 0.02;
@@ -209,19 +209,16 @@ public class Tango extends OpMode {
 
     @Override
     public void loop() {
-        // Update shooter PIDF from panel values
-        intake.setVelocityPIDFCoefficients(SHOOTER_P, SHOOTER_I, SHOOTER_D, SHOOTER_F);
-        
         // Gamepad input variables
         boolean LStickIn2 = gamepad2.left_stick_button;
         boolean RStickIn2 = gamepad2.right_stick_button;
         boolean LBumper1 = gamepad1.left_bumper;
         boolean RBumper1 = gamepad1.right_bumper;
 
-        double LStickY = gamepad1.left_stick_y;
-        double LStickX = gamepad1.left_stick_x;
-        double RStickY = -gamepad1.right_stick_y;
-        double RStickX = -gamepad1.right_stick_x;
+        double LStickY = -gamepad1.left_stick_y;
+        double LStickX = -gamepad1.left_stick_x;
+        double RStickY = gamepad1.right_stick_y;
+        double RStickX = gamepad1.right_stick_x;
 
         double LTrigger1 = gamepad1.left_trigger;
         double RTrigger1 = gamepad1.right_trigger;
@@ -281,7 +278,7 @@ public class Tango extends OpMode {
      */
     private void handleSubsystemControls() {
         // Intake motor control (simplified and corrected)
-          double rpm = 2500;
+        double rpm = 3100;
         
         // Right bumper = full speed (NOTE: 'intake' variable is actually the shooter motor due to hardware swap)
         if(gamepad2.right_bumper && gamepad2.b) {
@@ -291,7 +288,7 @@ public class Tango extends OpMode {
         } else if (gamepad2.right_trigger > 0.1) { // Added a deadzone for the trigger
             intake.setVelocity(getTickSpeed(-rpm));
         } else {
-            intake.setVelocity(0);
+            intake.setVelocity(getTickSpeed(rpm/10));
         }
 
         // Blocker servo control
@@ -303,7 +300,7 @@ public class Tango extends OpMode {
 
         // Shooter motor control - dpad_up for half speed (NOTE: 'shooter' variable is actually the intake motor due to hardware swap)
         if (gamepad2.left_bumper && gamepad2.a) { // Added a deadzone for the trigger
-            shooter.setPower(-0.4);
+            shooter.setPower(-0.625);
         } else if (gamepad2.left_bumper) {
             shooter.setPower(-0.8);
         }  else if (gamepad2.left_trigger > 0.1) { // Added a deadzone for the trigger
@@ -317,8 +314,8 @@ public class Tango extends OpMode {
      * Handles the Mecanum drivetrain logic using gamepad 1.
      */
     private void handleDriveControls() {
-        double LStickY = gamepad1.left_stick_x;  // Reversed forward/back
-        double LStickX = gamepad1.left_stick_y;  // Reversed strafe
+        double LStickY = -gamepad1.left_stick_x;  // Reversed forward/back
+        double LStickX = -gamepad1.left_stick_y;  // Reversed strafe
         double RStickX = gamepad1.right_stick_x;  // Reversed turn
         
         boolean LBumper1 = gamepad1.left_bumper;
@@ -334,8 +331,8 @@ public class Tango extends OpMode {
          if (Math.abs(LStickX) > 0 || Math.abs(LStickY) > 0 || Math.abs(RStickX) > 0) {
             double rotation = 0;
 
-            double newX = -LStickX * Math.cos(rotation) - -LStickY * Math.sin(rotation);
-            double newY = LStickY * Math.cos(rotation) - -LStickX * Math.sin(rotation);
+            double newX = LStickX * Math.cos(rotation) - LStickY * Math.sin(rotation);
+            double newY = -LStickY * Math.cos(rotation) - LStickX * Math.sin(rotation);
 
             double r = Math.hypot(newX, newY);
             double robotAngle = Math.atan2(newY, newX) - Math.PI / 4;
@@ -375,10 +372,10 @@ public class Tango extends OpMode {
     }
 
     /**
-     * Converts RPM to ticks per second for the shooter motor.
+     * Converts RPM to ticks per second for the motor.
      */
     public double getTickSpeed(double speed) {
-        return speed * SHOOTER_TICKS_PER_REV / 60;
+        return speed * TICKS_PER_REV / 60;
     }
 
     /**
