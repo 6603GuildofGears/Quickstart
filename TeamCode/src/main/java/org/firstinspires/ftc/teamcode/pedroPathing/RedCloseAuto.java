@@ -28,7 +28,7 @@ public class RedCloseAuto extends OpMode {
     
     // Shooter constants
     private final double TICKS_PER_REV = 28;
-    private static final double SHOOTER_P = 1.5;
+    private static final double SHOOTER_P = 2.0;
     private static final double SHOOTER_I = 0.15;
     private static final double SHOOTER_D = 0.1;
     private static final double SHOOTER_F = 12.5;
@@ -64,17 +64,17 @@ public class RedCloseAuto extends OpMode {
     private final Pose shootPoseAlpha = new Pose(87, 92, Math.toRadians(30));    // Shooting position
 
 
-    private final Pose intakePose = new Pose(110, 95, Math.toRadians(180));    // Intake position
+    private final Pose intakePose = new Pose(112, 95, Math.toRadians(180));    // Intake position
 
 
     private final Pose sample1 = new Pose(130, 95, Math.toRadians(180)); //114, 84
 
-    private final Pose intakePose2 = new Pose(100, 72.5, Math.toRadians(180));
+    private final Pose intakePose2 = new Pose(102, 72.5, Math.toRadians(180));
 
 
     private final Pose sample2 = new Pose(134, 72.5, Math.toRadians(180)); //114, 60
 
-    private final Pose intakePose3 = new Pose(110, 50, Math.toRadians(180));
+    private final Pose intakePose3 = new Pose(112, 50, Math.toRadians(180));
 
     private final Pose sample3 = new Pose(134, 50, Math.toRadians(180)); //114, 40
 
@@ -83,7 +83,7 @@ public class RedCloseAuto extends OpMode {
     
     
 
-    double rpm = 3100;
+    double rpm = 2750;
 
     private PathChain driveStartPoseShootPose;
     private PathChain driveShootPreloadToIntakePose;
@@ -155,12 +155,12 @@ public class RedCloseAuto extends OpMode {
                 if(!follower.isBusy()){
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
-                        blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.625);  // Run intake motor
+                        blocker.setPosition(0.15);  // Open blocker
+                        intake.setPower(-0.6);  // Run intake motor
                     }
                     
-                    // After 4 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 5) {
+                    // After 6 seconds total, move to next state
+                    if (shooterTimer.seconds() >= 6) {
                         pathState = PathState.DRIVE_SHOOT_PRELOAD_TO_INTAKEPOSE;
                         shooterStarted = false;
                     }
@@ -192,7 +192,7 @@ public class RedCloseAuto extends OpMode {
                     follower.followPath(driveIntakePoseToSample1, true);
                     
                     // Turn on intake during path
-                    intake.setPower(-0.75);
+                    intake.setPower(-0.575);
                     pathStarted = true;
                 }
                 
@@ -224,12 +224,12 @@ public class RedCloseAuto extends OpMode {
                 if (!follower.isBusy()) {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
-                        blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.625);  // Run intake motor
+                        blocker.setPosition(0.15);  // Open blocker
+                        intake.setPower(-0.475);  // Run intake motor
                     }
                     
-                    // After 4 seconds total, move to next state
-                    if (shooterTimer.seconds() >= 5) {
+                    // After 6 seconds total, move to next state
+                    if (shooterTimer.seconds() >= 6) {
                         pathState = PathState.DRIVE_SHOOTPOSE_TO_INTAKEPOSE2;
                         shooterStarted = false;
                     }
@@ -258,7 +258,7 @@ public class RedCloseAuto extends OpMode {
                     follower.followPath(driveIntakePose2ToSample2, true);
                     
                     // Turn on intake during path
-                    intake.setPower(-0.75);
+                    intake.setPower(-0.575);
                     pathStarted = true;
                 }
                 
@@ -290,14 +290,14 @@ public class RedCloseAuto extends OpMode {
                 if (!follower.isBusy()) {
                     // Wait 2 seconds then open blocker and run intake
                     if (shooterTimer.seconds() >= 2.0) {
-                        blocker.setPosition(0.175);  // Open blocker
-                        intake.setPower(-0.8);  // Run intake motor
+                        blocker.setPosition(0.15);  // Open blocker
+                        intake.setPower(-0.65);  // Run intake motor
                     }
                     
                     telemetry.addLine("Sample 2 Shot");
                     
-                    // After 4 seconds total, move to end position
-                    if (shooterTimer.seconds() >= 4.0) {
+                    // After 6 seconds total, move to end position
+                    if (shooterTimer.seconds() >= 6) {
                         // Turn off shooter and intake, close blocker
                         shooter.setVelocity(0);
                         intake.setPower(0);

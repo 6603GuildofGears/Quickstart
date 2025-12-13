@@ -34,8 +34,8 @@ import java.io.FileReader;
 import java.io.IOException;
 
 @Config
-@TeleOp(name = "Rango", group = "Robot")
-public class Rango extends OpMode {
+@TeleOp(name = "Tango", group = "Robot")
+public class Tango extends OpMode {
 
     // Hardware variables - Use DcMotorEx for all motors for consistency
     private DcMotorEx frontLeftDrive, frontRightDrive, backLeftDrive, backRightDrive;
@@ -314,8 +314,8 @@ public class Rango extends OpMode {
      * Handles the Mecanum drivetrain logic using gamepad 1.
      */
     private void handleDriveControls() {
-        double LStickY = -gamepad1.left_stick_x;  // Reversed forward/back
-        double LStickX = -gamepad1.left_stick_y;  // Reversed strafe
+        double LStickY = gamepad1.left_stick_x;  // Reversed forward/back
+        double LStickX = gamepad1.left_stick_y;  // Reversed strafe
         double RStickX = gamepad1.right_stick_x;  // Reversed turn
         
         boolean LBumper1 = gamepad1.left_bumper;
