@@ -50,6 +50,19 @@ public class CameraDistance extends OpMode {
     public static double ALPHA_COORDINATES = 0.3;   // Smoothing for X, Y, Z (0.3 = balanced)
     public static double ALPHA_DISTANCE = 0.25;     // Smoothing for distance (0.25 = smoother)
     
+    // Target position (inches from AprilTag)
+    public static double TARGET_X = 23.0;  // Target X position in inches
+    public static double TARGET_Y = 18.0;  // Target Y position in inches
+    public static double POSITION_TOLERANCE = 1.0;  // How close to consider "at target" (inches)
+    
+    // Navigation control constants
+    public static double NAV_KP = 0.05;  // Proportional gain for navigation
+    public static double MAX_NAV_SPEED = 0.6;  // Max speed during navigation
+    
+    // Navigation state
+    private boolean autoNavEnabled = false;
+    private boolean lastYButtonState = false;
+    
     // Camera coordinates storage (raw values)
     private double cameraX = 0.0;
     private double cameraY = 0.0;
@@ -126,6 +139,12 @@ public class CameraDistance extends OpMode {
 
     @Override
     public void loop() {
+        // Toggle auto-navigation with Y button on gamepad1
+        if (gamepad1.y && !lastYButtonState) {
+            autoNavEnabled = !autoNavEnabled;
+        }
+        lastYButtonState = gamepad1.y;
+        
         // Update camera data from Limelight
         updateCameraData();
 
@@ -262,6 +281,12 @@ public class CameraDistance extends OpMode {
         boolean RBumper1 = gamepad1.right_bumper;
         
         double gear = 1;
+        
+        // Auto-navigation mode - drive to target position
+        if (autoNavEnabled && targetVisible) {
+            navigateToTarget();
+            return;
+        }
 
         if (Math.abs(LStickX) > 0 || Math.abs(LStickY) > 0 || Math.abs(RStickX) > 0) {
             double rotation = 0;
@@ -302,6 +327,57 @@ public class CameraDistance extends OpMode {
     }
 
     /**
+     * Navigate to target position using camera coordinates
+     */
+    private void navigateToTarget() {
+        // Convert camera position to inches
+        double currentX = cameraX * 39.3701;
+        double currentY = cameraY * 39.3701;
+        
+        // Calculate error (how far from target)
+        double errorX = TARGET_X - currentX;
+        double errorY = TARGET_Y - currentY;
+        
+        // Check if at target
+        double distance = Math.sqrt(errorX * errorX + errorY * errorY);
+        if (distance < POSITION_TOLERANCE) {
+            // At target - stop
+            SetPower(0, 0, 0, 0);
+            return;
+        }
+        
+        // Calculate drive powers using proportional control
+        double driveY = errorX * NAV_KP;  // Forward/back (X is forward)
+        double driveX = errorY * NAV_KP;  // Strafe (Y is strafe)
+        
+        // Clamp speeds
+        driveY = clamp(driveY, -MAX_NAV_SPEED, MAX_NAV_SPEED);
+        driveX = clamp(driveX, -MAX_NAV_SPEED, MAX_NAV_SPEED);
+        
+        // Apply mecanum drive
+        double rotation = 0;  // No rotation during auto-nav
+        double newX = -driveX * Math.cos(rotation) - -driveY * Math.sin(rotation);
+        double newY = driveY * Math.cos(rotation) - -driveX * Math.sin(rotation);
+
+        double r = Math.hypot(newX, newY);
+        double robotAngle = Math.atan2(newY, newX) - Math.PI / 4;
+
+        double v1 = r * Math.cos(robotAngle); //lf
+        double v2 = r * Math.sin(robotAngle); //rf
+        double v3 = r * Math.sin(robotAngle); //lb
+        double v4 = r * Math.cos(robotAngle); //rb
+
+        SetPower(v1, v2, v3, v4);
+    }
+    
+    /**
+     * Clamp value between min and max
+     */
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    /**
      * Set power to all drive motors
      */
     private void SetPower(double v1, double v2, double v3, double v4) {
@@ -316,6 +392,19 @@ public class CameraDistance extends OpMode {
      */
     private void displayTelemetry() {
         telemetry.addLine("=== LIMELIGHT CAMERA DATA ===");
+        telemetry.addLine();
+        
+        // Navigation status
+        telemetry.addData("Auto-Navigation", autoNavEnabled ? "ENABLED" : "DISABLED");
+        telemetry.addData("Target Position", "(%.1f, %.1f) inches", TARGET_X, TARGET_Y);
+        if (targetVisible && autoNavEnabled) {
+            double currentX = cameraX * 39.3701;
+            double currentY = cameraY * 39.3701;
+            double errorX = TARGET_X - currentX;
+            double errorY = TARGET_Y - currentY;
+            double distance = Math.sqrt(errorX * errorX + errorY * errorY);
+            telemetry.addData("Distance to Target", "%.2f inches", distance);
+        }
         telemetry.addLine();
         
         if (targetVisible) {
