@@ -32,14 +32,11 @@ import java.io.FileReader;
 import java.io.IOException;
 
 @Config
-@TeleOp(name = "Rango", group = "Robot")
-public class Rango extends OpMode {
+@TeleOp(name = "ColorOrder", group = "Robot")
+public class ColorOrder extends OpMode {
 
     // Hardware variables - Use DcMotorEx for all motors for consistency
     private DcMotorEx frontLeftDrive, frontRightDrive, backLeftDrive, backRightDrive;
-    private DcMotorEx intake;
-    private DcMotorEx shooter;
-    private Servo blocker;
     private IMU imu;
 
     // Pedro Pathing Follower
@@ -47,18 +44,8 @@ public class Rango extends OpMode {
 
     // Limelight Variables
     private Limelight3A limelight;
+    private Limelight3A limelight2;  // For color detection
 
-
-    // Constants
-    private final double TICKS_PER_REV = 28;
-    private final double gear = 1.0;  // Gear ratio for rotation speed
-    
-    // PID coefficients for shooter stability (reduced P for less overshoot)
-    private static final double SHOOTER_P = 1.5;   // Proportional (lower = less aggressive)
-    private static final double SHOOTER_I = 0.15;  // Integral (helps eliminate steady-state error)
-    private static final double SHOOTER_D = 0.1;   // Derivative (dampens oscillation)
-    private static final double SHOOTER_F = 12.5;  // Feedforward (velocity control)
-    
     // Auto-aim constants (tunable via FTC Dashboard)
     public static double KP_ROTATE = 0.02;
     public static double ROTATE_DEADBAND = 1.5;
@@ -85,6 +72,12 @@ public class Rango extends OpMode {
     private int currentTagId = -1;
     private String currentTagType = "None";
     private String currentTagLocation = "Unknown";
+    
+    // Color detection tracking
+    private String detectedColor = "None";
+    private double colorConfidence = 0.0;
+    private double colorX = 0.0;
+    private double colorY = 0.0;
     
     // AprilTag field positions (Pedro Pathing coordinates - origin top-left, Y down, inches)
     // DECODE Season 2025-2026 - Field size: 141.24" x 141.24"
@@ -156,9 +149,6 @@ public class Rango extends OpMode {
         frontRightDrive = hardwareMap.get(DcMotorEx.class, "frontRightDrive");
         backLeftDrive = hardwareMap.get(DcMotorEx.class, "backLeftDrive");
         backRightDrive = hardwareMap.get(DcMotorEx.class, "backRightDrive");
-        intake = hardwareMap.get(DcMotorEx.class, "intakeMotor");
-        shooter = hardwareMap.get(DcMotorEx.class, "shooterMotor");
-        blocker = hardwareMap.get(Servo.class, "blocker");
         imu = hardwareMap.get(IMU.class, "imu");
 
 
@@ -175,15 +165,6 @@ public class Rango extends OpMode {
         frontRightDrive.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         backLeftDrive.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         backRightDrive.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
-        // Intake and Shooter setup
-        // NOTE: 'intake' variable is actually the shooter motor due to hardware swap
-        intake.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        intake.setDirection(DcMotorSimple.Direction.REVERSE);
-        
-        // Configure PID coefficients to reduce overshoot and oscillation on shooter
-        intake.setVelocityPIDFCoefficients(SHOOTER_P, SHOOTER_I, SHOOTER_D, SHOOTER_F);
-
-        shooter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         // IMU setup
         RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.FORWARD;
@@ -199,125 +180,55 @@ public class Rango extends OpMode {
         // Advanced Tab (click "Advanced" button):
         //   - Decimation: 1.0 (best accuracy) or 2.0 (faster)
         //   - Refine Edges: ENABLED (checkbox) - improves accuracy significantly
+        //   - Refine Edges: ENABLED (checkbox) - improves accuracy significantly
         //   - Pose Iterations: 100+ for better pose estimation
         //   - Tag Family: 36h11 (standard FTC)
         // Settings Tab:
         //   - LED Mode: Off or Pipeline
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         telemetry.setMsTransmissionInterval(11);
-        limelight.pipelineSwitch(0);  // Use pipeline 0 (configure via web interface)
+        limelight.pipelineSwitch(0);  // Use pipeline 0 for AprilTags (configure via web interface)
         limelight.start();
+        
+        // Initialize second Limelight for color detection
+        limelight2 = hardwareMap.get(Limelight3A.class, "limelight2");
+        limelight2.pipelineSwitch(0);  // Use pipeline 0 for color detection (configure via web interface)
+        limelight2.start();
+        
         telemetry.addLine("Initialization Complete");
         telemetry.update();
     }
 
     @Override
     public void start() {
-        blocker.setPosition(0.3);
+        // Start method - nothing to initialize at start
     }
 
     @Override
     public void loop() {
-        // Gamepad input variables
-        boolean LStickIn2 = gamepad2.left_stick_button;
-        boolean RStickIn2 = gamepad2.right_stick_button;
-        boolean LBumper1 = gamepad1.left_bumper;
-        boolean RBumper1 = gamepad1.right_bumper;
-
-        double LStickY = gamepad1.left_stick_y;
-        double LStickX = gamepad1.left_stick_x;
-        double RStickY = -gamepad1.right_stick_y;
-        double RStickX = -gamepad1.right_stick_x;
-
-        double LTrigger1 = gamepad1.left_trigger;
-        double RTrigger1 = gamepad1.right_trigger;
-
-        boolean a1 = gamepad1.a;
-        boolean b1 = gamepad1.b;
-        boolean x1 = gamepad1.x;
-        boolean y1 = gamepad1.y;
-
-        boolean a2 = gamepad2.a;
-        boolean b2 = gamepad2.b;
-        boolean x2 = gamepad2.x;
-        boolean y2 = gamepad2.y;
-
-        double LTrigger2 = gamepad2.left_trigger;
-        double RTrigger2 = gamepad2.right_trigger;
-        boolean LBumper2 = gamepad2.left_bumper;
-        boolean RBumper2 = gamepad2.right_bumper;
-
-        double RStickY2 = -gamepad2.right_stick_y;
-        double RStickX2 = gamepad2.right_stick_x;
-        double LStickY2 = -gamepad2.left_stick_y;
-        double LStickX2 = gamepad2.left_stick_x;
-
-        boolean dpadUp1 = gamepad1.dpad_up;
-        boolean dpadDown1 = gamepad1.dpad_down;
-        boolean dpadRight1 = gamepad1.dpad_right;
-        boolean dpadLeft1 = gamepad1.dpad_left;
-
-        boolean dpadUp2 = gamepad2.dpad_up;
-        boolean dpadDown2 = gamepad2.dpad_down;
-        boolean dpadRight2 = gamepad2.dpad_right;
-        boolean dpadLeft2 = gamepad2.dpad_left;
-
         // Toggle auto-aim with gamepad1 A button
-        if (a1 && !lastAButtonState) {
+        if (gamepad1.a && !lastAButtonState) {
             autoAimEnabled = !autoAimEnabled;
         }
-        lastAButtonState = a1;
+        lastAButtonState = gamepad1.a;
 
         // Update odometry localization
         // follower.update();
         
         // Update fused position using Limelight + Odometry
         updateFusedPosition();
+        
+        // Process color detection from limelight2
+        processColorDetection();
 
-        // Handle all robot controls
-        handleSubsystemControls();
+        // Handle drive controls
         handleDriveControls();
 
         // Display telemetry
         displayTelemetry();
     }
 
-    /**
-     * Handles the logic for the intake, shooter, and blocker mechanisms using gamepad 2.
-     */
-    private void handleSubsystemControls() {
-        // Intake motor control (simplified and corrected)
-        double rpm = 3000;
-        
-        // Right bumper = full speed (NOTE: 'intake' variable is actually the shooter motor due to hardware swap)
-        if(gamepad2.right_bumper && gamepad2.b) {
-            intake.setVelocity(getTickSpeed(rpm + 500)); // far zone
-        } else if (gamepad2.right_bumper) {
-            intake.setVelocity(getTickSpeed(rpm)); // Full speed
-        } else if (gamepad2.right_trigger > 0.1) { // Added a deadzone for the trigger
-            intake.setVelocity(getTickSpeed(-rpm));
-        } else {
-            intake.setVelocity(0);
-        }
 
-        // Blocker servo control
-        if (gamepad2.a) {
-            blocker.setPosition(0.175);
-        } else {
-            blocker.setPosition(0.32);
-        }
-
-        // Shooter motor control - dpad_up for half speed (NOTE: 'shooter' variable is actually the intake motor due to hardware swap)
-        if (gamepad2.left_bumper && gamepad2.a) { // Added a deadzone for the trigger
-            shooter.setPower(-0.4);
-        } else if (gamepad2.left_bumper) {
-            shooter.setPower(-0.8);
-        }  else if (gamepad2.left_trigger > 0.1) { // Added a deadzone for the trigger
-            shooter.setPower(0.75);
-        } else {
-            shooter.setPower(0);
-        }
-    }
 
     /**
      * Handles the Mecanum drivetrain logic using gamepad 1.
@@ -381,10 +292,52 @@ public class Rango extends OpMode {
     }
 
     /**
-     * Converts RPM to ticks per second for the motor.
+     * Process color detection from limelight2 - Detects Purple vs Green
      */
-    public double getTickSpeed(double speed) {
-        return speed * TICKS_PER_REV / 60;
+    private void processColorDetection() {
+        if (limelight2 == null) {
+            return;
+        }
+        
+        LLResult result = limelight2.getLatestResult();
+        if (result != null && result.isValid()) {
+            // Check for color detector results
+            List<LLResultTypes.ColorResult> colorResults = result.getColorResults();
+            if (!colorResults.isEmpty()) {
+                LLResultTypes.ColorResult color = colorResults.get(0);
+                colorX = color.getTargetXDegrees();
+                colorY = color.getTargetYDegrees();
+                double targetArea = color.getTargetArea();
+                
+                // Classify between Purple and Green
+                // Set up two pipelines in Limelight web interface:
+                // Pipeline 0: Detect Purple (tune HSV: H=270-320, S=30-100, V=30-100)
+                // Pipeline 1: Detect Green (tune HSV: H=60-150, S=30-100, V=30-100)
+                
+                if (targetArea > 0.5) {
+                    // Get current pipeline to determine which color is being detected
+                    int pipeline = limelight2.getPipelineIndex();
+                    
+                    if (pipeline == 0) {
+                        detectedColor = "Purple";
+                    } else if (pipeline == 1) {
+                        detectedColor = "Green";
+                    } else {
+                        detectedColor = "Unknown";
+                    }
+                    colorConfidence = targetArea;
+                } else {
+                    detectedColor = "None";
+                    colorConfidence = 0.0;
+                }
+            } else {
+                detectedColor = "None";
+                colorConfidence = 0.0;
+            }
+        } else {
+            detectedColor = "None";
+            colorConfidence = 0.0;
+        }
     }
 
     /**
@@ -589,6 +542,26 @@ public class Rango extends OpMode {
             telemetry.addData("Location", currentTagLocation);
         } else {
             telemetry.addData("Tag", "None Detected");
+        }
+        telemetry.addLine();
+        
+        // Color Detection
+        telemetry.addLine("--- Color Detection ---");
+        telemetry.addData("Detected Color", detectedColor);
+        if (!detectedColor.equals("None")) {
+            telemetry.addData("Confidence", "%.2f", colorConfidence);
+            telemetry.addData("Position X", "%.2f deg", colorX);
+            telemetry.addData("Position Y", "%.2f deg", colorY);
+        }
+        telemetry.addLine();
+        
+        // Color Detection
+        telemetry.addLine("--- Color Detection ---");
+        telemetry.addData("Detected Color", detectedColor);
+        if (!detectedColor.equals("None")) {
+            telemetry.addData("Confidence", "%.2f", colorConfidence);
+            telemetry.addData("Position X", "%.2f deg", colorX);
+            telemetry.addData("Position Y", "%.2f deg", colorY);
         }
         telemetry.addLine();
         
