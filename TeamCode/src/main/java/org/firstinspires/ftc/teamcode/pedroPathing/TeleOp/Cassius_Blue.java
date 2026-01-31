@@ -204,30 +204,20 @@ public class Cassius_Blue extends LinearOpMode {
 
 
 
-            // intake with spindexer oscillation
+            // intake with spindexer slow rotation
 
             if (RTrigger1 > 0.1) {
                 intake.setPower(1); // intake in
+                boolean left = true;
                 
-                double spinmult = 0.02;
+                // Continuously rotate spindexer
+                double currentPos = spindexer.getPosition();
+                currentPos += 0.005; // Increment for slow rotation
+                if (currentPos == 1) currentPos = 0.0; // Wrap back to start
 
-                if(spindexer.getPosition() != p1){
-                    spindexer.setPosition(spindexer.getPosition() - spinmult);
-                } else if (spindexer.getPosition() == p1){
-                    spindexer.setPosition(spindexer.getPosition() + spinmult);
-                }
-                
-                // Oscillate spindexer between p1 and p3
-                // if (spindexerTimer.milliseconds() > spindexerOscillateTime) {
-                //     if (spindexerAtP1) {
-                //         spindexer.setPosition(p3);
-                //         spindexerAtP1 = false;
-                //     } else {
-                //         spindexer.setPosition(p1);
-                //         spindexerAtP1 = true;
-                //     }
-                //     spindexerTimer.reset();
-                // }
+
+
+                spindexer.setPosition(currentPos);
             } else if (LTrigger1 > 0.1) {
                 intake.setPower(-1); // intake out
             } else {
