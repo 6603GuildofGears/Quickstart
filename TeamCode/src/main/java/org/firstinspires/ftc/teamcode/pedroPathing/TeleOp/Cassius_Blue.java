@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import static org.firstinspires.ftc.teamcode.pedroPathing.Pipelines.Motor_PipeLine.*;
 import static org.firstinspires.ftc.teamcode.pedroPathing.Pipelines.Servo_Pipeline.*;
 import static org.firstinspires.ftc.teamcode.pedroPathing.Pipelines.Limelight_Pipeline.*;
+import static org.firstinspires.ftc.teamcode.pedroPathing.TeleOp.TurretConfig.*;
 
 
 @TeleOp(name="Cassius Blue", group="TeleOp")
@@ -48,11 +49,12 @@ public class Cassius_Blue extends LinearOpMode {
         ElapsedTime shootTimer = new ElapsedTime();
         int sShot = 0; // 0=idle, 1=shot1, 2=shot2, 3=shot3
         
-        // Spindexer oscillation during intake
-        ElapsedTime spindexerTimer = new ElapsedTime();
-        boolean spindexerAtP1 = true;
-        double spindexerOscillateTime = 2000;
-
+        // Spindexer rotation during intake
+        boolean spindexerForward = true; // Direction of rotation
+        
+        // Turret tracking toggle
+        boolean autoTrackingEnabled = true; // Default to manual
+        boolean y2Pressed = false; // Debounce for Y button
         flicker1.setPosition(F1Rest);
         flicker2.setPosition(F2Rest);
 
@@ -61,30 +63,31 @@ public class Cassius_Blue extends LinearOpMode {
 
 
 
-        double rpm = 4000; // target RPM for shooter (NOTE: 'intake' variable is actually the shooter motor)
+        double rpm = 3000; // target RPM for shooter (NOTE: 'intake' variable is actually the shooter motor)
       
         // Turret safety limits (FOUND FROM TESTING!)
         int turretMinLimit = -275; // Left limit
         int turretMaxLimit = 630;  // Right limit
         boolean limitsEnabled = true; // Limits are now active
 
+        // double p1 = 0.25;
+        // double p2 = 0.425;
+        // double p3 = 1;
+
         double p1 = 0;
-        double p2 = 0.425;
+        double p2 = 0.5;
         double p3 = 1;
 
-
+        // Turret PID values are now in TurretConfig.java for live tuning via Pedro Pathing Panels
         
-        // Turret auto-aim constants (PD control for smooth centering)
-        double KP_TURRET = 0.018; // Proportional gain (moderate speed)
-        double KD_TURRET = 0.35; // Derivative gain (strong damping)
-        double TURRET_DEADBAND = 0.5; // Degrees - tight for absolute center
-        double MAX_TURRET_SPEED = 0.4; // Maximum turret rotation speed
-        double lastTurretError = 0; // For derivative calculation
-        double filteredTurretError = 0; // Low-pass filtered error
-        double filterAlpha = 0.6; // Filter strength (0.6 = moderate smoothing)
-        ElapsedTime turretTimer = new ElapsedTime(); // For time-based derivative
+        // Turret tracking state variables
+        double lastTurretError = 0;
+        double integratedError = 0; // Accumulated error for integral term
+        double filteredTurretError = 0;
+        ElapsedTime turretTimer = new ElapsedTime();
 
         spindexer.setPosition(p1); // Initialize spindexer to starting position
+
 
         waitForStart();
         while (opModeIsActive()) {
@@ -173,10 +176,10 @@ public class Cassius_Blue extends LinearOpMode {
 
 
                 } else if (LBumper1) {
-                    SetPower(-gear, gear, gear, -gear);
+                    SetPower(gear, -gear, gear, -gear);
 
-                } else if (RBumper1) {
-                    SetPower(gear, -gear, -gear, gear);
+                } else if (LTrigger1 > 0.25) {
+                    SetPower(gear, -gear, gear, -gear);
 
                 }  else if (dpadUp1) {
                     SetPower(1 , 1 , 1 , 1 ); //0.3
@@ -207,18 +210,24 @@ public class Cassius_Blue extends LinearOpMode {
             // intake with spindexer slow rotation
 
             if (RTrigger1 > 0.1) {
-                intake.setPower(1); // intake in
-                boolean left = true;
+                intake.setPower(0.75); // intake in
                 
-                // Continuously rotate spindexer
+                // Oscillate spindexer back and forth
                 double currentPos = spindexer.getPosition();
-                currentPos += 0.005; // Increment for slow rotation
-                if (currentPos == 1) currentPos = 0.0; // Wrap back to start
 
+                if(spindexerForward){
+                spindexer.setPosition(currentPos + 0.005);
+                    if(currentPos >= 0.995) {
+                        spindexerForward = false; // Reverse direction
+                    }
+                } else {
+                    spindexer.setPosition(currentPos - 0.005);
+                    if(currentPos <= 0.005) {
+                        spindexerForward = true; // Reverse direction
+                    }
+                }
 
-
-                spindexer.setPosition(currentPos);
-            } else if (LTrigger1 > 0.1) {
+            } else if (RBumper1) {
                 intake.setPower(-1); // intake out
             } else {
                 intake.setPower(0);
@@ -235,6 +244,7 @@ public class Cassius_Blue extends LinearOpMode {
             }
             
             // Run shooting sequence based purely on sShot and timer
+            // FAIL-SAFE: Each case has a maximum timeout to prevent jamming from breaking the sequence
             switch(sShot) {
                 case 0: // Idle
                     flywheel.setVelocity(0);
@@ -244,21 +254,23 @@ public class Cassius_Blue extends LinearOpMode {
                     
                 case 1: // First shot at p1
                     flywheel.setVelocity(getTickSpeed(rpm));
-                    if (shootTimer.milliseconds() < 1000) {
+                    if (shootTimer.milliseconds() < 1500) {
                         // Wait for flywheel to spin up
-                    } else if (shootTimer.milliseconds() < 1300) {
+                    } else if (shootTimer.milliseconds() < 1900) {
                         // Fire
                         flicker1.setPosition(F1Shoot);
                         flicker2.setPosition(F2Shoot);
-                    } else if (shootTimer.milliseconds() < 2000) {
+                    } else if (shootTimer.milliseconds() < 2100) {
                         // Reset flickers
                         flicker1.setPosition(F1Rest);
                         flicker2.setPosition(F2Rest);
-                    } else if (shootTimer.milliseconds() < 2700) {
+                    } else if (shootTimer.milliseconds() < 3200) {
                         // Move spindexer to p2
                         spindexer.setPosition(p2);
+                    } else if (shootTimer.milliseconds() < 4000) {
+                        // Wait for spindexer to finish
                     } else {
-                        // Next shot
+                        // Next shot OR timeout fail-safe (4 seconds max)
                         sShot = 2;
                         shootTimer.reset();
                     }
@@ -266,19 +278,21 @@ public class Cassius_Blue extends LinearOpMode {
                     
                 case 2: // Second shot at p2
                     flywheel.setVelocity(getTickSpeed(rpm));
-                    if (shootTimer.milliseconds() < 300) {
+                    if (shootTimer.milliseconds() < 600) {
                         // Fire
                         flicker1.setPosition(F1Shoot);
                         flicker2.setPosition(F2Shoot);
-                    } else if (shootTimer.milliseconds() < 1750) {
+                    } else if (shootTimer.milliseconds() < 1000) {
                         // Reset flickers
                         flicker1.setPosition(F1Rest);
                         flicker2.setPosition(F2Rest);
-                    } else if (shootTimer.milliseconds() < 2700) {
+                    } else if (shootTimer.milliseconds() < 2500) {
                         // Move spindexer to p3
                         spindexer.setPosition(p3);
+                    } else if (shootTimer.milliseconds() < 3500) {
+                        // Wait for spindexer to finish
                     } else {
-                        // Next shot
+                        // Next shot OR timeout fail-safe (3.5 seconds max)
                         sShot = 3;
                         shootTimer.reset();
                     }
@@ -290,12 +304,14 @@ public class Cassius_Blue extends LinearOpMode {
                         // Fire
                         flicker1.setPosition(F1Shoot);
                         flicker2.setPosition(F2Shoot);
-                    } else if (shootTimer.milliseconds() < 1750) {
+                    } else if (shootTimer.milliseconds() < 1000) {
                         // Reset flickers
                         flicker1.setPosition(F1Rest);
                         flicker2.setPosition(F2Rest);
+                    } else if (shootTimer.milliseconds() < 2000) {
+                        // Extra time buffer for final shot
                     } else {
-                        // Sequence complete
+                        // Sequence complete OR timeout fail-safe (2 seconds max)
                         sShot = 0;
                     }
                     break;
@@ -309,6 +325,19 @@ public class Cassius_Blue extends LinearOpMode {
                      hood.setPosition(Math.max(0.0, currentHoodPos - 0.01)); // Slide down
                  } 
 
+            // Toggle turret auto-tracking with Y button (gamepad2)
+            if (y2 && !y2Pressed) {
+                autoTrackingEnabled = !autoTrackingEnabled;
+                // Reset tracking state when starting tracking
+                lastTurretError = 0;
+                integratedError = 0; // Reset integral on toggle
+                filteredTurretError = 0;
+                turretTimer.reset();
+                y2Pressed = true;
+            } else if (!y2) {
+                y2Pressed = false;
+            }
+
           
 
             // Turret control - Manual override or automatic tracking
@@ -316,45 +345,70 @@ public class Cassius_Blue extends LinearOpMode {
             double turretPower = 0;
             
             // Manual turret control with dpad left/right on gamepad 2
-            if (dpadLeft2) {
-                turretPower = -0.5; // Turn left
-            } else if (dpadRight2) {
-                turretPower = 0.5; // Turn right
-            } else if (hasBlueGoal()) {
-                // Automatic tracking control (PD control with filtering)
+            // if (dpadLeft2) {
+            //     turretPower = -0.5; // Turn left
+            //     // Reset tracking when manual override
+            //     lastTurretError = 0;
+            //     filteredTurretError = 0;
+            // } else if (dpadRight2) {
+            //     turretPower = 0.5; // Turn right
+            //     // Reset tracking when manual override
+            //     lastTurretError = 0;
+            //     filteredTurretError = 0;
+            // } else 
+            if (autoTrackingEnabled && hasBlueGoal()) {
+                // Automatic tracking control (PID control with filtering)
                 // Motor direction: RIGHT = POSITIVE, LEFT = NEGATIVE
                 double tx = getBlueGoalX(); // Target X offset in degrees
                 
-                // Low-pass filter to smooth noisy Limelight readings
-                filteredTurretError = filterAlpha * tx + (1 - filterAlpha) * filteredTurretError;
+                // Initialize filter on first reading to avoid lag
+                if (filteredTurretError == 0 && lastTurretError == 0) {
+                    filteredTurretError = tx;
+                } else {
+                    // Low-pass filter to smooth noisy Limelight readings
+                    filteredTurretError = FILTER_ALPHA * tx + (1 - FILTER_ALPHA) * filteredTurretError;
+                }
                 
                 if (Math.abs(filteredTurretError) > TURRET_DEADBAND) {
                     // Proportional term: power proportional to error
-                    // Positive tx (target right) -> positive power (move right)
                     double pTerm = filteredTurretError * KP_TURRET;
                     
-                    // Derivative term: dampens based on rate of change (prevents overshoot)
+                    // Derivative term: dampens based on rate of change
                     double dt = turretTimer.seconds();
-                    double errorChange = (filteredTurretError - lastTurretError) / dt;
-                    double dTerm = errorChange * KD_TURRET;
-                    turretTimer.reset();
+                    double dTerm = 0;
                     
-                    // Combined PD control
-                    turretPower = pTerm + dTerm;
+                    // Only calculate derivative if we have a valid time delta
+                    if (dt > 0.01 && dt < 1.0) {
+                        double errorChange = (filteredTurretError - lastTurretError) / dt;
+                        // Clamp derivative to prevent spikes
+                      //  if (Math.abs(errorChange) < 100) {
+                            dTerm = errorChange * KD_TURRET;
+                      //  }
+                    }
+                    
+                    // Integral term: accumulate error over time (with anti-windup)
+                    integratedError += filteredTurretError * dt;
+                    integratedError = Math.max(-MAX_INTEGRAL, Math.min(MAX_INTEGRAL, integratedError));
+                    double iTerm = integratedError * KI_TURRET;
+                    
+                    // Combined PID control
+                    turretPower = pTerm + iTerm + dTerm;
                     
                     // Clamp to maximum speed
-                    if (turretPower > MAX_TURRET_SPEED) turretPower = MAX_TURRET_SPEED;
-                    if (turretPower < -MAX_TURRET_SPEED) turretPower = -MAX_TURRET_SPEED;
+                    turretPower = Math.max(-MAX_TURRET_SPEED, Math.min(MAX_TURRET_SPEED, turretPower));
                     
                     lastTurretError = filteredTurretError;
-                } else {
-                    lastTurretError = 0; // Reset when centered
                     turretTimer.reset();
+                } else {
+                    // Within deadband - centered
+                    turretPower = 0;
+                    lastTurretError = filteredTurretError;
                 }
             } else {
-                lastTurretError = 0; // Reset when no target
+                // No tracking or no target
+                lastTurretError = 0;
+                integratedError = 0; // Reset integral when target lost
                 filteredTurretError = 0;
-                turretTimer.reset();
             }
 
             // Apply safety limits to prevent wire damage
@@ -370,18 +424,35 @@ public class Cassius_Blue extends LinearOpMode {
             turret.setPower(turretPower);
 
             // Display telemetry
-            telemetry.addData("Turret Position", turret.getCurrentPosition());
-            telemetry.addData("Turret Power", String.format("%.2f", turretPower));
+            telemetry.addData("=== LIMELIGHT STATUS ===", "");
+            telemetry.addData("LL Connected", hasTarget() ? "YES" : "CHECKING...");
             telemetry.addData("Blue Goal Visible", hasBlueGoal() ? "YES" : "NO");
-            telemetry.addData("spinPos", spindexer.getPosition());
-             if (hasBlueGoal()) {
+            if (hasBlueGoal()) {
                 telemetry.addData("Target X Error", String.format("%.2f°", getBlueGoalX()));
             }
-            telemetry.addData("Spin target: ", sShot);
-            telemetry.addData("Shoot timer", shootTimer.milliseconds());
-            telemetry.addData("flicker1 pos", flicker1.getPosition());
-            telemetry.addData("flicker2 pos", flicker2.getPosition());
-            displayTelemetry(this); // Shows Limelight FPS
+            
+            telemetry.addData("=== TURRET ===", "");
+            telemetry.addData("Turret Position", turret.getCurrentPosition());
+            telemetry.addData("Turret Power", String.format("%.2f", turretPower));
+            telemetry.addData("Auto Tracking", autoTrackingEnabled ? "ON" : "OFF");
+            telemetry.addData("Filtered Error", String.format("%.2f°", filteredTurretError));
+            telemetry.addData("Integrated Error", String.format("%.3f", integratedError));
+            telemetry.addData("--- PID TUNING (Panels) ---", "");
+            telemetry.addData("KP", String.format("%.3f", KP_TURRET));
+            telemetry.addData("KI", String.format("%.3f", KI_TURRET));
+            telemetry.addData("KD", String.format("%.3f", KD_TURRET));
+            
+            telemetry.addData("=== SHOOTER ===", "");
+            telemetry.addData("Shot State", sShot == 0 ? "IDLE" : "Shot " + sShot);
+            telemetry.addData("Shoot Timer", String.format("%.0fms", shootTimer.milliseconds()));
+            telemetry.addData("Flywheel Velocity", String.format("%.0f", flywheel.getVelocity()));
+            
+            telemetry.addData("=== SERVOS ===", "");
+            telemetry.addData("Spindexer Pos", String.format("%.2f", spindexer.getPosition()));
+            telemetry.addData("Flicker1", String.format("%.2f", flicker1.getPosition()));
+            telemetry.addData("Flicker2", String.format("%.2f", flicker2.getPosition()));
+            
+            displayTelemetry(this); // Shows Limelight FPS and additional info
             telemetry.update();
  
         }

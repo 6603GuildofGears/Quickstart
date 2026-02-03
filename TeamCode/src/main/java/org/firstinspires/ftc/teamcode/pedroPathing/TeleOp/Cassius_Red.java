@@ -44,20 +44,12 @@ public class Cassius_Red extends LinearOpMode {
         double F1Shoot = 0.5; // flicker 1 shoot position
         double F2Shoot = 0.5; // flicker 2 shoot position
         
-        // Spindexer positions
-        double p1 = 0;
-        double p2 = 0.425;
-        double p3 = 1;
-        int currentSpindexerPos = 1; // Track which position (1, 2, or 3)
-        boolean dpadPressed = false; // Debounce for dpad
-        
-        // Flicker timing
-        ElapsedTime flickerTimer = new ElapsedTime();
-        boolean waitingToFlick = false;
+        // Simple shooting sequence - only sShot and timer
+        ElapsedTime shootTimer = new ElapsedTime();
+        int sShot = 0; // 0=idle, 1=shot1, 2=shot2, 3=shot3
 
         flicker1.setPosition(F1Rest);
         flicker2.setPosition(F2Rest);
-        spindexer.setPosition(p1);
 
         double rpm = 4000; // target RPM for shooter
       
@@ -65,6 +57,22 @@ public class Cassius_Red extends LinearOpMode {
         int turretMinLimit = -275; // Left limit
         int turretMaxLimit = 630;  // Right limit
         boolean limitsEnabled = true; // Limits are now active
+
+        double p1 = 0;
+        double p2 = 0.425;
+        double p3 = 1;
+        
+        // Turret auto-aim constants (PD control for smooth centering)
+        double KP_TURRET = 0.012; // Proportional gain (reduced for smoother tracking)
+        double KD_TURRET = 0.5; // Derivative gain (increased damping to reduce overcorrection)
+        double TURRET_DEADBAND = 0.5; // Degrees - tight for absolute center
+        double MAX_TURRET_SPEED = 0.35; // Maximum turret rotation speed
+        double lastTurretError = 0; // For derivative calculation
+        double filteredTurretError = 0; // Low-pass filtered error
+        double filterAlpha = 0.6; // Filter strength (0.6 = moderate smoothing)
+        ElapsedTime turretTimer = new ElapsedTime(); // For time-based derivative
+
+        spindexer.setPosition(p1); // Initialize spindexer to starting position
 
         waitForStart();
         while (opModeIsActive()) {
@@ -180,67 +188,150 @@ public class Cassius_Red extends LinearOpMode {
 
                 // AUXILIARY CODE
 
-            // Intake
+            // Intake with spindexer slow rotation
             if (LBumper2) {
                 intake.setPower(1); // intake in
+                
+                // Continuously rotate spindexer
+                double currentPos = spindexer.getPosition();
+                currentPos += 0.005; // Increment for slow rotation
+                if (currentPos == 1) currentPos = 0.0; // Wrap back to start
+                spindexer.setPosition(currentPos);
             } else if (LTrigger2 > 0.1) {
                 intake.setPower(-1); // intake out
             } else {
                 intake.setPower(0);
             }
 
-            // Flywheel control - simple on/off
-            if (RBumper2) {
-                flywheel.setVelocity(getTickSpeed(rpm));
-            } else {
-                flywheel.setVelocity(0);
-            }
-
-            // Dpad Right - cycle spindexer position then flick after delay
-            if (dpadRight2 && !dpadPressed) {
-                currentSpindexerPos++;
-                if (currentSpindexerPos > 3) currentSpindexerPos = 1;
-                
-                // Move spindexer to new position
-                if (currentSpindexerPos == 1) spindexer.setPosition(p1);
-                else if (currentSpindexerPos == 2) spindexer.setPosition(p2);
-                else spindexer.setPosition(p3);
-                
-                // Start timer for flicking
-                flickerTimer.reset();
-                waitingToFlick = true;
-                dpadPressed = true;
-            } else if (!dpadRight2) {
-                dpadPressed = false;
+            // Shooting sequence - fully timer based, no state variables
+            // RBumper2 to start, runs through all 3 shots automatically
+            if (RBumper2 && sShot == 0) {
+                // Start sequence
+                sShot = 1;
+                shootTimer.reset();
+                spindexer.setPosition(p1);
             }
             
-            // Handle flicker timing
-            if (waitingToFlick) {
-                if (flickerTimer.milliseconds() < 1500) {
-                    // Waiting for spindexer to reach position
-                } else if (flickerTimer.milliseconds() < 1800) {
-                    // Flick
-                    flicker1.setPosition(F1Shoot);
-                    flicker2.setPosition(F2Shoot);
-                } else {
-                    // Reset flickers
+            // Run shooting sequence based purely on sShot and timer
+            switch(sShot) {
+                case 0: // Idle
+                    flywheel.setVelocity(0);
                     flicker1.setPosition(F1Rest);
                     flicker2.setPosition(F2Rest);
-                    waitingToFlick = false;
-                }
+                    break;
+                    
+                case 1: // First shot at p1
+                    flywheel.setVelocity(getTickSpeed(rpm));
+                    if (shootTimer.milliseconds() < 1000) {
+                        // Wait for flywheel to spin up
+                    } else if (shootTimer.milliseconds() < 1300) {
+                        // Fire
+                        flicker1.setPosition(F1Shoot);
+                        flicker2.setPosition(F2Shoot);
+                    } else if (shootTimer.milliseconds() < 2000) {
+                        // Reset flickers
+                        flicker1.setPosition(F1Rest);
+                        flicker2.setPosition(F2Rest);
+                    } else if (shootTimer.milliseconds() < 2700) {
+                        // Move spindexer to p2
+                        spindexer.setPosition(p2);
+                    } else {
+                        // Next shot
+                        sShot = 2;
+                        shootTimer.reset();
+                    }
+                    break;
+                    
+                case 2: // Second shot at p2
+                    flywheel.setVelocity(getTickSpeed(rpm));
+                    if (shootTimer.milliseconds() < 300) {
+                        // Fire
+                        flicker1.setPosition(F1Shoot);
+                        flicker2.setPosition(F2Shoot);
+                    } else if (shootTimer.milliseconds() < 1750) {
+                        // Reset flickers
+                        flicker1.setPosition(F1Rest);
+                        flicker2.setPosition(F2Rest);
+                    } else if (shootTimer.milliseconds() < 2700) {
+                        // Move spindexer to p3
+                        spindexer.setPosition(p3);
+                    } else {
+                        // Next shot
+                        sShot = 3;
+                        shootTimer.reset();
+                    }
+                    break;
+                    
+                case 3: // Third shot at p3
+                    flywheel.setVelocity(getTickSpeed(rpm));
+                    if (shootTimer.milliseconds() < 300) {
+                        // Fire
+                        flicker1.setPosition(F1Shoot);
+                        flicker2.setPosition(F2Shoot);
+                    } else if (shootTimer.milliseconds() < 1750) {
+                        // Reset flickers
+                        flicker1.setPosition(F1Rest);
+                        flicker2.setPosition(F2Rest);
+                    } else {
+                        // Sequence complete
+                        sShot = 0;
+                    }
+                    break;
             }
 
-            // Hood control - vertical dpad
+            // Hood control - slide up/down incrementally
             double currentHoodPos = hood.getPosition();
             if (dpadUp2) {
-                hood.setPosition(Math.min(1.0, currentHoodPos + 0.01)); // Up
+                hood.setPosition(Math.min(1.0, currentHoodPos + 0.01)); // Slide up
             } else if (dpadDown2) {
-                hood.setPosition(Math.max(0.0, currentHoodPos - 0.01)); // Down
+                hood.setPosition(Math.max(0.0, currentHoodPos - 0.01)); // Slide down
             }
 
-            // Turret manual control on right stick X (gamepad2)
+            // Turret control - Manual override or automatic tracking
             int turretPosition = turret.getCurrentPosition();
-            double turretPower = RStickX2 * 0.5; // Use right stick X for turret
+            double turretPower = 0;
+            
+            // Manual turret control with dpad left/right on gamepad 2
+            if (dpadLeft2) {
+                turretPower = -0.5; // Turn left
+            } else if (dpadRight2) {
+                turretPower = 0.5; // Turn right
+            } else if (hasRedGoal()) {
+                // Automatic tracking control (PD control with filtering)
+                // Motor direction: RIGHT = POSITIVE, LEFT = NEGATIVE
+                double tx = getRedGoalX(); // Target X offset in degrees
+                
+                // Low-pass filter to smooth noisy Limelight readings
+                filteredTurretError = filterAlpha * tx + (1 - filterAlpha) * filteredTurretError;
+                
+                if (Math.abs(filteredTurretError) > TURRET_DEADBAND) {
+                    // Proportional term: power proportional to error
+                    // Positive tx (target right) -> positive power (move right)
+                    double pTerm = filteredTurretError * KP_TURRET;
+                    
+                    // Derivative term: dampens based on rate of change (prevents overshoot)
+                    double dt = turretTimer.seconds();
+                    double errorChange = (filteredTurretError - lastTurretError) / dt;
+                    double dTerm = errorChange * KD_TURRET;
+                    turretTimer.reset();
+                    
+                    // Combined PD control
+                    turretPower = pTerm + dTerm;
+                    
+                    // Clamp to maximum speed
+                    if (turretPower > MAX_TURRET_SPEED) turretPower = MAX_TURRET_SPEED;
+                    if (turretPower < -MAX_TURRET_SPEED) turretPower = -MAX_TURRET_SPEED;
+                    
+                    lastTurretError = filteredTurretError;
+                } else {
+                    lastTurretError = 0; // Reset when centered
+                    turretTimer.reset();
+                }
+            } else {
+                lastTurretError = 0; // Reset when no target
+                filteredTurretError = 0;
+                turretTimer.reset();
+            }
 
             // Apply safety limits
             if (limitsEnabled) {
@@ -257,10 +348,16 @@ public class Cassius_Red extends LinearOpMode {
             // Display telemetry
             telemetry.addData("Turret Position", turret.getCurrentPosition());
             telemetry.addData("Turret Power", String.format("%.2f", turretPower));
-            telemetry.addData("Spindexer Pos", currentSpindexerPos);
-            telemetry.addData("Flicker1", flicker1.getPosition());
-            telemetry.addData("Flicker2", flicker2.getPosition());
-            telemetry.addData("Hood", hood.getPosition());
+            telemetry.addData("Red Goal Visible", hasRedGoal() ? "YES" : "NO");
+            telemetry.addData("spinPos", spindexer.getPosition());
+            if (hasRedGoal()) {
+                telemetry.addData("Target X Error", String.format("%.2f°", getRedGoalX()));
+            }
+            telemetry.addData("Spin target: ", sShot);
+            telemetry.addData("Shoot timer", shootTimer.milliseconds());
+            telemetry.addData("flicker1 pos", flicker1.getPosition());
+            telemetry.addData("flicker2 pos", flicker2.getPosition());
+            displayTelemetry(this); // Shows Limelight FPS
             telemetry.update();
  
         }
