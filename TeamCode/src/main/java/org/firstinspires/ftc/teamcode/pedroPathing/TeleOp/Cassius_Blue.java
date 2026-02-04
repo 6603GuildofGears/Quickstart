@@ -87,8 +87,8 @@ public class Cassius_Blue extends LinearOpMode {
         // double p3 = 1;
 
         double p1 = 0;
-        double p2 = 0.5;
-        double p3 = 1;
+        double p2 = 0.375;
+        double p3 = .75;
 
         int startSpindexer = 0;
 
@@ -219,10 +219,7 @@ public class Cassius_Blue extends LinearOpMode {
                 // AUXILIARY CODE
 
 
-            if(x2){
-                spindexer.setPosition(p1);
-                
-            }
+            
             telemetry.addData("spindexer pos", spindexer.getPosition());
             if(dpadRight2){
                 double CPoS = spindexer.getPosition();
